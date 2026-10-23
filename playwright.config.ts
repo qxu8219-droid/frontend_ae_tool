@@ -35,23 +35,23 @@ export default defineConfig({
   projects: [
     {
       name: "mock",
-      testMatch: "replay.spec.ts",
-      use: { baseURL: "http://127.0.0.1:5173" },
+      testMatch: ["replay.spec.ts", "workbench.spec.ts"],
+      use: { baseURL: "http://127.0.0.1:5183" },
     },
     ...(includeReal
       ? [
           {
             name: "real",
             testMatch: "real-mode.spec.ts",
-            use: { baseURL: "http://127.0.0.1:5174" },
+            use: { baseURL: "http://127.0.0.1:5184" },
           },
         ]
       : []),
   ],
   webServer: [
     {
-      command: "npm run dev",
-      url: "http://127.0.0.1:5173",
+      command: "npm run dev -- --port 5183",
+      url: "http://127.0.0.1:5183",
       env: { VITE_USE_MOCK: "true" },
       reuseExistingServer: false,
       timeout: 30_000,
@@ -60,17 +60,17 @@ export default defineConfig({
       ? [
           {
             command:
-              "env -u PYTHONPATH -u PYTHONHOME ../backend/.venv/bin/python -m uvicorn app.main:app --app-dir ../backend --host 127.0.0.1 --port 18000",
-            url: "http://127.0.0.1:18000/openapi.json",
+              "env -u PYTHONPATH -u PYTHONHOME ../backend/.venv/bin/python -m uvicorn app.main:app --app-dir ../backend --host 127.0.0.1 --port 18010",
+            url: "http://127.0.0.1:18010/openapi.json",
             reuseExistingServer: false,
             timeout: 30_000,
           },
           {
-            command: "npm run dev -- --port 5174",
-            url: "http://127.0.0.1:5174",
+            command: "npm run dev -- --port 5184",
+            url: "http://127.0.0.1:5184",
             env: {
               VITE_USE_MOCK: "false",
-              API_PROXY_TARGET: "http://127.0.0.1:18000",
+              API_PROXY_TARGET: "http://127.0.0.1:18010",
             },
             reuseExistingServer: false,
             timeout: 30_000,

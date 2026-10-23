@@ -7,21 +7,35 @@ import { usePlaybackStore } from "./stores/playback";
 import { useTelemetryStore } from "./stores/telemetry";
 import { useUiStore } from "./stores/ui";
 import { SCENARIOS, type ScenarioId } from "./domain/types";
+import UploadPanel from "./components/UploadPanel.vue";
+import TimelineControl from "./components/TimelineControl.vue";
+import HistoryControls from "./components/HistoryControls.vue";
+import { useHistoryStore } from "./stores/history";
+import { createHistoryChart } from "./media/historyChart";
+const history = useHistoryStore();
+const chart = createHistoryChart();
 
 const props = defineProps<{ runtime?: MockBridge }>();
 const session = useSessionStore(),
   playback = usePlaybackStore(),
   telemetry = useTelemetryStore(),
   ui = useUiStore();
-const canvas = ref<HTMLCanvasElement | null>(null),
-  uploadInput = ref<HTMLInputElement | null>(null);
+const canvas = ref<HTMLCanvasElement | null>(null);
 const controller = createWorkbenchController({
   runtime: props.runtime,
   getCanvas: () => canvas.value,
+  getPresentation: () => ({
+    collapsedGroups: ui.collapsedGroups,
+    historyCanvas: chart.getCanvas(),
+    historyLogId: chart.getState().logId,
+    historyRange: chart.getState().ready
+      ? { from: chart.getState().from, to: chart.getState().to }
+      : undefined,
+  }),
 });
 const seekTime = ref(0),
-  previewTime = ref(0),
-  dragging = ref(false),
+  seekFrame = ref(0),
+  chartError = ref<string | null>(null),
   now = ref(Date.now());
 const ready = computed(() => session.workerPhase === "ready");
 const loaded = computed(
@@ -80,17 +94,30 @@ const themeOverrides = {
   },
 };
 let timer: ReturnType<typeof setInterval> | undefined;
-watch(
-  () => displayed.value?.log_time_s,
-  (value) => {
-    if (!dragging.value) previewTime.value = value ?? 0;
-  },
+watch([() => history.curve, () => [...history.selected]], async () => {
+  chartError.value = null;
+  await chart.update(history.curve, history.selected);
+  chartError.value = chart.getState().error;
+});
+const canControl = computed(
+  () => loaded.value && ready.value && session.socket.state === "open",
 );
-async function upload(event: Event) {
-  const input = event.target as HTMLInputElement;
-  const file = input.files?.[0];
-  if (file) await controller.loadFile(file);
-  input.value = "";
+const canPlay = computed(
+  () => canControl.value && !busy.value && playback.server?.state !== "playing",
+);
+const canPause = computed(
+  () => canControl.value && !busy.value && playback.server?.state === "playing",
+);
+const groups = [
+  { id: "base", label: "底盘 · 6" },
+  { id: "torso", label: "躯干 · 4" },
+  { id: "left", label: "左臂与夹爪 · 9" },
+  { id: "right", label: "右臂与夹爪 · 9" },
+];
+function toggleGroup(id: string) {
+  ui.collapsedGroups = ui.collapsedGroups.includes(id)
+    ? ui.collapsedGroups.filter((value) => value !== id)
+    : [...ui.collapsedGroups, id];
 }
 function scenario(event: Event) {
   controller.setScenario(
@@ -100,12 +127,6 @@ function scenario(event: Event) {
 function changeSpeed(event: Event) {
   void controller.control("speed", {
     speed: Number((event.target as HTMLSelectElement).value),
-  });
-}
-function releaseTimeline(event: Event) {
-  dragging.value = false;
-  void controller.control("seek", {
-    time_s: Number((event.target as HTMLInputElement).value),
   });
 }
 onMounted(() => {
@@ -123,6 +144,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   clearInterval(timer);
   controller.dispose();
+  chart.dispose();
   delete (window as unknown as Record<string, unknown>).__replayDiagnostics;
 });
 </script>
@@ -147,6 +169,80 @@ onBeforeUnmount(() => {
             >{{ runtime ? "MOCK · 合成数据" : "真实后端" }}</n-tag
           ><span class="version">IsaacSim 6.2 · PhysX</span>
         </div>
+        <section class="environment-controls">
+          <label class="field-label" for="scene">场景</label>
+          <select
+            id="scene"
+            v-model="session.sceneId"
+            :disabled="!!session.sid || busy"
+          >
+            <option v-if="!session.scenes.length" value="">等待场景列表</option>
+            <option
+              v-for="item in session.scenes"
+              :key="item.id"
+              :value="item.id"
+            >
+              {{ item.name }}
+            </option>
+          </select>
+          <label class="field-label" for="robot">机器人</label>
+          <select
+            id="robot"
+            v-model="session.robotId"
+            :disabled="!!session.sid || busy"
+          >
+            <option v-if="!session.robots.length" value="">
+              等待机器人列表
+            </option>
+            <option
+              v-for="item in session.robots"
+              :key="item.id"
+              :value="item.id"
+            >
+              {{ item.name }}
+            </option>
+          </select>
+
+          <n-button
+            data-testid="create-session"
+            type="primary"
+            block
+            :disabled="
+              !!session.sid ||
+              !!ui.cleanupSessionId ||
+              busy ||
+              !session.sceneId ||
+              !session.robotId
+            "
+            :loading="busy && !session.sid"
+            @click="controller.create"
+            >创建会话</n-button
+          >
+          <div class="session-row">
+            <span>工作线程</span
+            ><strong :class="{ danger: session.workerPhase === 'error' }">{{
+              phaseNames[session.workerPhase] ?? session.workerPhase
+            }}</strong>
+          </div>
+          <n-button
+            data-testid="close-session"
+            secondary
+            block
+            size="small"
+            :disabled="
+              (!session.sid && !ui.creating && !ui.cleanupSessionId) ||
+              (busy && !!ui.cleanupSessionId)
+            "
+            @click="controller.close"
+            >{{
+              session.sid
+                ? "关闭会话"
+                : ui.cleanupSessionId
+                  ? "重试关闭"
+                  : "取消创建"
+            }}</n-button
+          >
+        </section>
       </header>
       <div class="workspace-heading">
         <div>
@@ -162,140 +258,18 @@ onBeforeUnmount(() => {
 
       <main class="workspace">
         <aside class="setup-pane">
-          <section class="card setup-card">
-            <div class="section-heading">
-              <h3>回放环境</h3>
-              <span class="step-label">01</span>
-            </div>
-            <label class="field-label" for="scene">场景</label>
-            <select
-              id="scene"
-              v-model="session.sceneId"
-              :disabled="!!session.sid || busy"
-            >
-              <option v-if="!session.scenes.length" value="">
-                等待场景列表
-              </option>
-              <option
-                v-for="item in session.scenes"
-                :key="item.id"
-                :value="item.id"
-              >
-                {{ item.name }}
-              </option>
-            </select>
-            <label class="field-label" for="robot">机器人</label>
-            <select
-              id="robot"
-              v-model="session.robotId"
-              :disabled="!!session.sid || busy"
-            >
-              <option v-if="!session.robots.length" value="">
-                等待机器人列表
-              </option>
-              <option
-                v-for="item in session.robots"
-                :key="item.id"
-                :value="item.id"
-              >
-                {{ item.name }}
-              </option>
-            </select>
-            <div class="robot-spec">
-              <span>28 自由度</span><span>固定第三人称</span>
-            </div>
-            <n-button
-              data-testid="create-session"
-              type="primary"
-              block
-              :disabled="
-                !!session.sid || busy || !session.sceneId || !session.robotId
-              "
-              :loading="busy && !session.sid"
-              @click="controller.create"
-              >创建会话</n-button
-            >
-            <div class="session-row">
-              <span>工作线程</span
-              ><strong :class="{ danger: session.workerPhase === 'error' }">{{
-                phaseNames[session.workerPhase] ?? session.workerPhase
-              }}</strong>
-            </div>
-            <n-button
-              data-testid="close-session"
-              secondary
-              block
-              size="small"
-              :disabled="!session.sid && !ui.creating"
-              @click="controller.close"
-              >{{ session.sid ? "关闭会话" : "取消创建" }}</n-button
-            >
-          </section>
-
-          <section class="card setup-card">
-            <div class="section-heading">
-              <h3>日志数据</h3>
-              <span class="step-label">02</span>
-            </div>
-            <div class="upload-area">
-              <span class="file-icon">↥</span
-              ><strong>{{
-                playback.uploaded ? "日志已载入" : "载入一段运动日志"
-              }}</strong>
-              <p>
-                {{
-                  runtime
-                    ? "演示模式使用合成轨迹，不解析真机文件内容。"
-                    : "选择文件上传到真实后端。"
-                }}
-              </p>
-            </div>
-            <n-button
-              v-if="runtime"
-              data-testid="demo-load"
-              block
-              type="primary"
-              secondary
-              :disabled="!ready || busy"
-              @click="controller.loadDemo"
-              >载入示例日志</n-button
-            >
-            <n-button
-              block
-              secondary
-              :disabled="!ready || busy"
-              class="upload-button"
-              @click="uploadInput?.click()"
-              >选择文件 <span class="file-limit">≤ 1 MiB</span></n-button
-            >
-            <input
-              ref="uploadInput"
-              class="visually-hidden"
-              type="file"
-              accept=".json,.csv,.log"
-              aria-label="上传日志文件"
-              @change="upload"
-            />
-            <div v-if="playback.uploaded" class="log-facts">
-              <div>
-                <span>采样点</span
-                ><b>{{
-                  playback.uploaded.stats.sample_count.toLocaleString()
-                }}</b>
-              </div>
-              <div>
-                <span>时长</span
-                ><b>{{ playback.uploaded.stats.duration_s.toFixed(1) }} s</b>
-              </div>
-              <div>
-                <span>有效关节</span
-                ><b>{{ playback.uploaded.stats.joints_mapped.length }} / 28</b>
-              </div>
-            </div>
-            <p v-if="playback.uploaded?.issues.length" class="quality-note">
-              {{ playback.uploaded.issues[0].message }}
-            </p>
-          </section>
+          <UploadPanel
+            :ready="ready && !ui.creating"
+            :busy="ui.uploading"
+            :mock="!!runtime"
+            :uploaded="playback.uploaded"
+            :active-log-id="playback.server?.log_id ?? null"
+            :issues="ui.uploadIssues"
+            :max-bytes="controller.maxUploadBytes"
+            @upload="controller.loadFile"
+            @activate="(logId) => controller.control('load', { log_id: logId })"
+            @demo="controller.loadDemo"
+          />
           <section v-if="runtime" class="card scenario-card">
             <label class="field-label" for="scenario">演示场景</label
             ><select
@@ -353,60 +327,58 @@ onBeforeUnmount(() => {
                 aria-label="同帧呈现的机器人画面、28关节、底盘及日志进度"
               />
             </div>
+            <div class="group-controls" aria-label="关节分组">
+              <button
+                v-for="group in groups"
+                :key="group.id"
+                :data-testid="`group-${group.id}`"
+                :aria-expanded="!ui.collapsedGroups.includes(group.id)"
+                @click="toggleGroup(group.id)"
+              >
+                {{ ui.collapsedGroups.includes(group.id) ? "＋" : "－" }}
+                {{ group.label }}
+              </button>
+              <span>有限位进度 / 无限位 / 来源标记</span>
+            </div>
             <div class="transport">
-              <div class="timeline">
-                <input
-                  aria-label="回放时间轴"
-                  type="range"
-                  min="0"
-                  :max="playback.server?.duration_s || 12"
-                  step="0.001"
-                  :value="previewTime"
-                  :disabled="!loaded"
-                  @input="
-                    dragging = true;
-                    previewTime = Number(
-                      ($event.target as HTMLInputElement).value,
-                    );
-                  "
-                  @change="releaseTimeline"
-                /><span
-                  >{{ dragging ? "定位预览" : pending ? "等待呈现" : "已呈现" }}
-                  <b
-                    >{{
-                      (dragging
-                        ? previewTime
-                        : (displayed?.log_time_s ?? 0)
-                      ).toFixed(3)
-                    }}
-                    s</b
-                  ></span
-                >
-              </div>
+              <TimelineControl
+                :duration="playback.server?.duration_s ?? 0"
+                :presented-time="displayed?.log_time_s ?? 0"
+                :disabled="!canControl"
+                :context="`${session.sid}:${playback.server?.log_id}:${ui.intentRevision}`"
+                @seek="controller.seek"
+              />
+              <p v-if="pending" class="pending-note">
+                操作已接受，等待匹配画面与数据共同呈现
+              </p>
               <div class="control-row">
                 <div class="play-controls">
                   <n-button
                     data-testid="play"
                     type="primary"
-                    :disabled="!loaded || !ready || busy"
+                    :disabled="!canPlay"
                     @click="controller.control('play')"
-                    >▶ 播放</n-button
+                    >{{
+                      playback.server?.state === "ended"
+                        ? "▶ 从头重播"
+                        : "▶ 播放"
+                    }}</n-button
                   ><n-button
                     data-testid="pause"
                     secondary
-                    :disabled="!loaded || !ready || busy"
+                    :disabled="!canPause"
                     @click="controller.control('pause')"
                     >暂停</n-button
                   ><n-button
                     data-testid="stop"
                     secondary
-                    :disabled="!loaded || !ready || busy"
+                    :disabled="!canControl || busy"
                     @click="controller.control('stop')"
                     >停止归零</n-button
                   ><n-button
                     data-testid="step-backward"
                     secondary
-                    :disabled="!loaded || !ready || busy"
+                    :disabled="!canControl || busy"
                     title="上一原采样点"
                     @click="
                       controller.control('step', { direction: 'backward' })
@@ -415,7 +387,7 @@ onBeforeUnmount(() => {
                   ><n-button
                     data-testid="step-forward"
                     secondary
-                    :disabled="!loaded || !ready || busy"
+                    :disabled="!canControl || busy"
                     title="下一原采样点"
                     @click="
                       controller.control('step', { direction: 'forward' })
@@ -429,11 +401,14 @@ onBeforeUnmount(() => {
                       data-testid="speed-select"
                       aria-label="播放倍速"
                       :value="playback.server?.speed ?? 1"
-                      :disabled="!loaded || !ready || busy"
+                      :disabled="!canControl || busy"
                       @change="changeSpeed"
                     >
                       <option :value="0.1">0.1×</option>
+                      <option :value="0.25">0.25×</option>
+                      <option :value="0.5">0.5×</option>
                       <option :value="1">1×</option>
+                      <option :value="2">2×</option>
                       <option :value="4">4×</option>
                       <option :value="10">10×</option>
                     </select></label
@@ -456,14 +431,41 @@ onBeforeUnmount(() => {
                   <n-button
                     data-testid="seek-submit"
                     secondary
-                    :disabled="!loaded || !ready || busy"
+                    :disabled="!canControl || busy"
                     @click="controller.control('seek', { time_s: seekTime })"
-                    >定位</n-button
+                    >定位秒数</n-button
+                  >
+                  <div class="seek-field">
+                    <input
+                      v-model.number="seekFrame"
+                      data-testid="frame-input"
+                      aria-label="原始采样帧序号（从0开始）"
+                      type="number"
+                      min="0"
+                      step="1"
+                      :disabled="!canControl"
+                      @keydown.enter="
+                        controller.control('seek', { frame_index: seekFrame })
+                      "
+                    /><span>帧</span>
+                  </div>
+                  <n-button
+                    data-testid="frame-submit"
+                    secondary
+                    :disabled="!canControl || busy"
+                    @click="
+                      controller.control('seek', { frame_index: seekFrame })
+                    "
+                    >定位帧</n-button
                   >
                 </div>
               </div>
             </div>
           </div>
+          <n-alert v-if="chartError" type="error" class="error-banner"
+            >历史曲线绘制失败：{{ chartError }}</n-alert
+          >
+          <HistoryControls :disabled="!canControl" @seek="controller.seek" />
           <div class="bottom-row">
             <div class="card session-summary">
               <h3>当前会话</h3>
@@ -483,6 +485,45 @@ onBeforeUnmount(() => {
                     <small>ms</small></strong
                   >
                 </div>
+              </div>
+              <div class="health-metrics" data-testid="health-panel">
+                <span
+                  >系统实时 ·
+                  {{
+                    session.health?.worker_alive
+                      ? "Worker 存活"
+                      : "等待健康信息"
+                  }}</span
+                >
+                <span
+                  >CPU
+                  {{ session.health?.cpu_percent?.toFixed(1) ?? "—" }}%</span
+                >
+                <span
+                  >内存
+                  {{
+                    session.health?.memory_bytes == null
+                      ? "—"
+                      : (session.health.memory_bytes / 1048576).toFixed(1)
+                  }}
+                  MiB</span
+                >
+                <span
+                  >GPU
+                  {{ session.health?.gpu_percent?.toFixed(1) ?? "—" }}%</span
+                >
+                <span
+                  >渲染
+                  {{ session.health?.render_fps?.toFixed(1) ?? "—" }} fps</span
+                >
+                <span>{{
+                  session.healthWallTime
+                    ? new Date(session.healthWallTime).toLocaleTimeString(
+                        "zh-CN",
+                        { hour12: false },
+                      )
+                    : "—"
+                }}</span>
               </div>
               <p class="subtle">
                 {{

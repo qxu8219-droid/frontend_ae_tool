@@ -605,6 +605,52 @@ export class MockRuntime {
         );
       const missing = log.missing && index >= 25,
         points: Schema["CurvePoint"][] = [];
+      // Prescan original samples independently of the chart's point budget.
+      // Sample classifications hold until the next original sample; then clip
+      // the full spans so a query beginning between samples retains its limit.
+      const intervals: Schema["LimitInterval"][] = [];
+      const descriptor = log.result.channels[index];
+      if (
+        !missing &&
+        descriptor.angle_semantics !== "angular_unwrapped" &&
+        descriptor.lower != null &&
+        descriptor.upper != null &&
+        Number.isFinite(descriptor.lower) &&
+        Number.isFinite(descriptor.upper) &&
+        descriptor.upper > descriptor.lower
+      ) {
+        let active: Schema["LimitInterval"] | null = null;
+        for (let sample = 0; sample <= 720; sample++) {
+          const time = sample / SAMPLE_HZ;
+          const normalized =
+            (this.sourceValue(index, time) - descriptor.lower) /
+            (descriptor.upper - descriptor.lower);
+          const severity =
+            normalized < 0 || normalized > 1
+              ? "error"
+              : normalized <= 0.05 || normalized >= 0.95
+                ? "warning"
+                : null;
+          if (active && active.severity !== severity) {
+            active.to_s = time;
+            intervals.push(active);
+            active = null;
+          }
+          if (severity && !active)
+            active = {
+              channel: name,
+              from_s: time,
+              to_s: time,
+              severity,
+              code:
+                severity === "error"
+                  ? "JOINT_LIMIT_EXCEEDED"
+                  : "JOINT_LIMIT_NEAR",
+            };
+          if (active) active.to_s = time;
+        }
+        if (active) intervals.push(active);
+      }
       for (
         let sample = Math.max(0, Math.ceil(from * SAMPLE_HZ));
         sample <= Math.min(720, Math.floor(to * SAMPLE_HZ));
@@ -619,7 +665,13 @@ export class MockRuntime {
         channel: name,
         unit: log.result.channels[index].unit,
         points: this.downsample(points, max),
-        limit_intervals: [],
+        limit_intervals: intervals
+          .filter((interval) => interval.to_s >= from && interval.from_s <= to)
+          .map((interval) => ({
+            ...interval,
+            from_s: Math.max(from, interval.from_s),
+            to_s: Math.min(to, interval.to_s),
+          })),
       };
     });
     return {

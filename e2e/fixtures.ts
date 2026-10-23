@@ -61,7 +61,7 @@ export const test = base.extend<{ evidence: BrowserEvidence }>({
       await use(evidence);
       const summary = {
         scope:
-          "T05 mock frontend browser behavior; not real media or final product acceptance",
+          "T05–T07 mock frontend browser behavior; not real media or final product acceptance",
         title: testInfo.title,
         project: testInfo.project.name,
         status: testInfo.status,
@@ -72,7 +72,7 @@ export const test = base.extend<{ evidence: BrowserEvidence }>({
       };
       const path = testInfo.outputPath("observations.json");
       await writeFile(path, JSON.stringify(summary, null, 2));
-      await testInfo.attach("T05 observations", {
+      await testInfo.attach("Mock workbench observations", {
         path,
         contentType: "application/json",
       });

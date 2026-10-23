@@ -163,7 +163,7 @@ export async function readPair(page: Page): Promise<PairSample | null> {
     // extra digits cannot pass merely because the diagnostic value is correct.
     const expectedCanvas = document.createElement("canvas");
     expectedCanvas.width = 1280;
-    expectedCanvas.height = 720;
+    expectedCanvas.height = 1080;
     const expected = expectedCanvas.getContext("2d", {
       willReadFrequently: true,
     })!;
@@ -211,7 +211,11 @@ export async function readPair(page: Page): Promise<PairSample | null> {
       expected.textAlign = "right";
       const value = snapshot.joints[index]!;
       expected.fillText(
-        Math.abs(value) >= 10000 ? value.toExponential(1) : value.toFixed(3),
+        !quality.valid || quality.origin === "missing"
+          ? "—"
+          : Math.abs(value) >= 10000
+            ? value.toExponential(1)
+            : value.toFixed(3),
         1093,
         y,
       );
@@ -238,7 +242,7 @@ export async function readPair(page: Page): Promise<PairSample | null> {
 
 export function assertPair(sample: PairSample, sid?: string): void {
   const { snapshot, stamp, sync, source } = sample;
-  expect(sample.canvas).toEqual({ width: 1280, height: 720 });
+  expect(sample.canvas).toEqual({ width: 1280, height: 1080 });
   expect(
     stamp.confident,
     "All 64 stamp pixels must have readable red/green contrast",

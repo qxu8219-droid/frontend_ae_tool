@@ -296,7 +296,7 @@ h3 {
 .stage-scroll canvas {
   display: block;
   width: 100%;
-  height: clamp(400px, calc(100vh - 380px), 720px);
+  height: auto;
   min-width: 800px;
   object-fit: contain;
 }
@@ -552,4 +552,108 @@ footer {
   footer {
     flex-direction: column;
   }
+}
+/* T06/T07 workbench controls stay separate from the paired current readings. */
+.topbar {
+  min-height: 114px;
+  height: auto;
+  flex-wrap: wrap;
+  padding: 16px 0;
+  gap: 12px;
+}
+.environment-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  flex-wrap: wrap;
+}
+.environment-controls .field-label {
+  margin: 0;
+  font-size: 11px;
+}
+.environment-controls select {
+  width: 180px;
+  height: 34px;
+}
+.environment-controls .n-button {
+  width: auto;
+  height: 34px;
+}
+.environment-controls .session-row {
+  margin: 0 0 0 auto;
+  gap: 10px;
+}
+.group-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  flex-wrap: wrap;
+  border-top: 1px solid #233044;
+}
+.group-controls button {
+  color: #acc1d8;
+  background: #172436;
+  border: 1px solid #34465c;
+  border-radius: 5px;
+  font-size: 11px;
+  padding: 6px 10px;
+}
+.group-controls button[aria-expanded="false"] {
+  opacity: 0.6;
+}
+.group-controls span,
+.pending-note {
+  font-size: 11px;
+  color: #8ca2ba;
+}
+.pending-note {
+  margin: 4px 0 12px;
+  color: #e9bb79;
+}
+.health-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 16px;
+  font-size: 11px;
+  color: #a0b4cb;
+}
+.health-metrics span:first-child {
+  width: 100%;
+  color: #61cdc1;
+}
+button:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #59d5cf;
+  outline-offset: 2px;
+}
+@media (max-width: 900px) {
+  .environment-controls select {
+    flex: 1;
+    min-width: 120px;
+  }
+  .environment-controls .session-row {
+    margin-left: 0;
+  }
+}
+
+.history-controls {
+  padding: 20px;
+  border: 1px solid #233044;
+  border-radius: 10px;
+  background: #0d1725;
+  margin-top: 16px;
+}
+.position-controls {
+  flex-wrap: wrap;
+}
+.control-row {
+  flex-wrap: wrap;
+  row-gap: 12px;
+}
+.history-controls button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

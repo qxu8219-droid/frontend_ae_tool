@@ -4,11 +4,107 @@ import { createWorkbenchController } from "../../src/app/controller";
 import { useSessionStore } from "../../src/stores/session";
 import { usePlaybackStore } from "../../src/stores/playback";
 import { useTelemetryStore } from "../../src/stores/telemetry";
-import type { ApiClient } from "../../src/api/client";
+import { ApiError, type ApiClient } from "../../src/api/client";
 import type { ControlAck } from "../../src/domain/types";
 import type { SessionSocketOptions } from "../../src/api/socket";
+import { useHistoryStore } from "../../src/stores/history";
+import { useUiStore } from "../../src/stores/ui";
+import { example } from "../api/fixtures";
 beforeEach(() => setActivePinia(createPinia()));
 afterEach(() => vi.unstubAllGlobals());
+
+it("rejects duplicate creation while starting or when a session is active", async () => {
+  let release!: (value: unknown) => void;
+  let created = 0;
+  const api = {
+    createSession: () => {
+      created++;
+      return new Promise((r) => {
+        release = r;
+      });
+    },
+  } as unknown as ApiClient;
+  const controller = createWorkbenchController({
+    api,
+    source,
+    socketFactory,
+    getCanvas: () => null,
+  });
+  const first = controller.create();
+  void controller.create();
+  expect(created).toBe(1);
+  release({ session_id: "s", status: "starting", ws_url: "/ws" });
+  await first;
+  void controller.create();
+  expect(created).toBe(1);
+  controller.dispose();
+});
+
+it("uploads mapping and retains the active log until explicit activation", async () => {
+  const uploaded = example("service/upload_result");
+  const calls: unknown[] = [];
+  const api = {
+    upload: async (_sid: string, _file: File, options: unknown) => {
+      calls.push(options);
+      return uploaded;
+    },
+    load: async () => {
+      throw new Error("upload must not activate");
+    },
+  } as unknown as ApiClient;
+  const controller = createWorkbenchController({
+    api,
+    source,
+    socketFactory,
+    getCanvas: () => null,
+  });
+  useSessionStore().sid = "s";
+  usePlaybackStore().update(ack(5).playback);
+  await controller.loadFile(new File(["{}"], "data.json"), {
+    parser: "json_v1",
+    mapping_config: { timestamp: { field: "time", unit: "s" } },
+  });
+  expect(calls).toHaveLength(1);
+  expect(calls[0]).toMatchObject({
+    parser: "json_v1",
+    mapping_config: { timestamp: { field: "time", unit: "s" } },
+  });
+  expect(usePlaybackStore().uploaded?.log_id).toBe(uploaded.log_id);
+  expect(usePlaybackStore().server?.target_position?.log_time_s).toBe(5);
+  expect(useUiStore().error).toBeNull();
+  controller.dispose();
+});
+
+it("clears local state immediately and blocks creation until deletion finishes", async () => {
+  let deleted!: () => void;
+  let creates = 0;
+  const api = {
+    deleteSession: () =>
+      new Promise<void>((r) => {
+        deleted = r;
+      }),
+    createSession: async () => {
+      creates++;
+      return { session_id: "new", status: "starting", ws_url: "/ws" };
+    },
+  } as unknown as ApiClient;
+  const controller = createWorkbenchController({
+    api,
+    source,
+    socketFactory,
+    getCanvas: () => null,
+  });
+  useSessionStore().sid = "old";
+  const closing = controller.close();
+  expect(useSessionStore().sid).toBeNull();
+  await controller.create();
+  expect(creates).toBe(0);
+  deleted();
+  await closing;
+  await controller.create();
+  expect(useSessionStore().sid).toBe("new");
+  controller.dispose();
+});
 const socketFactory = () => ({
   connect() {},
   disconnect() {},
@@ -245,4 +341,87 @@ it("a stale acknowledgement cannot replace the accepted log pairing barrier", as
   expect(controller.diagnostics.sync().snapshots).toBe(1);
   controller.dispose();
   vi.unstubAllGlobals();
+});
+
+it("a newer explicit seek supersedes an older coalesced timeline target", async () => {
+  const sent: number[] = [];
+  let release!: (value: ControlAck) => void;
+  const api = {
+    seek: async (_sid: string, body: { time_s: number }) => {
+      sent.push(body.time_s);
+      if (sent.length === 1)
+        return new Promise<ControlAck>((r) => (release = r));
+      return ack(body.time_s, sent.length);
+    },
+  } as unknown as ApiClient;
+  const c = createWorkbenchController({
+    api,
+    source,
+    socketFactory,
+    getCanvas: () => null,
+  });
+  useSessionStore().sid = "s";
+  usePlaybackStore().update(ack(0, 0).playback);
+  useHistoryStore().setContext("s", "l");
+  c.seek(1);
+  await Promise.resolve();
+  await Promise.resolve();
+  c.seek(2);
+  const explicit = c.control("seek", { time_s: 3 });
+  release(ack(1));
+  await explicit;
+  await new Promise((r) => setTimeout(r, 0));
+  expect(sent).toEqual([1, 3]);
+  expect(usePlaybackStore().server?.target_position?.log_time_s).toBe(3);
+  c.dispose();
+});
+it("a failed replacement upload cannot leave an old result available for activation", async () => {
+  const api = {
+    upload: async () => {
+      throw new ApiError(422, "BAD_LOG", "invalid log");
+    },
+  } as unknown as ApiClient;
+  const c = createWorkbenchController({
+    api,
+    source,
+    socketFactory,
+    getCanvas: () => null,
+  });
+  useSessionStore().sid = "s";
+  usePlaybackStore().uploaded = example("service/upload_result");
+  usePlaybackStore().update(ack(5).playback);
+  await c.loadFile(new File(["bad"], "new.log"));
+  expect(usePlaybackStore().uploaded).toBeNull();
+  expect(usePlaybackStore().server?.log_id).toBe("l");
+  c.dispose();
+});
+it("a failed deletion retains a cleanup handle so Close can retry instead of stranding the server session", async () => {
+  const deleted: string[] = [];
+  let creates = 0;
+  const api = {
+    deleteSession: async (sid: string) => {
+      deleted.push(sid);
+      if (deleted.length === 1)
+        throw new ApiError(0, "NETWORK_ERROR", "offline");
+    },
+    createSession: async () => {
+      creates++;
+      return { session_id: "new", status: "starting", ws_url: "/ws" };
+    },
+  } as unknown as ApiClient;
+  const c = createWorkbenchController({
+    api,
+    source,
+    socketFactory,
+    getCanvas: () => null,
+  });
+  useSessionStore().sid = "old";
+  await c.close();
+  await c.create();
+  expect(creates).toBe(0);
+  await c.close();
+  expect(deleted).toEqual(["old", "old"]);
+  await c.create();
+  expect(useSessionStore().sid).toBe("new");
+  c.dispose();
 });

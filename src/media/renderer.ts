@@ -1,10 +1,6 @@
-import type {
-  ChannelQuality,
-  FrameSnapshot,
-  JointMetadata,
-} from "../domain/types";
+import type { FrameSnapshot, JointMetadata } from "../domain/types";
 import { validateFrameSnapshot } from "../api/validation";
-import canonicalMetadata from "../api/fixtures/joint-metadata.json";
+import { jointPanelGroups } from "./panelModel";
 import {
   decodeStamp,
   MARKER_PIXELS,
@@ -16,7 +12,7 @@ import type { DecodedFrame } from "./types";
 
 /** Fixed presentation geometry, shared with independent screenshot decoders. */
 export const PRESENTATION_WIDTH = 1280;
-export const PRESENTATION_HEIGHT = 720;
+export const PRESENTATION_HEIGHT = 1080;
 export const CANVAS_WIDTH = PRESENTATION_WIDTH;
 export const CANVAS_HEIGHT = PRESENTATION_HEIGHT;
 export const PRESENTATION_IMAGE_RECT = Object.freeze({
@@ -25,6 +21,19 @@ export const PRESENTATION_IMAGE_RECT = Object.freeze({
   width: 900,
   height: 506.25,
 });
+export const PRESENTATION_HISTORY_RECT = Object.freeze({
+  x: 20,
+  y: 740,
+  width: 1240,
+  height: 290,
+});
+
+export interface PresentationOptions {
+  collapsedGroups?: readonly string[];
+  historyCanvas?: HTMLCanvasElement | null;
+  historyLogId?: string | null;
+  historyRange?: { from: number; to: number };
+}
 
 const COLORS = Object.freeze({
   background: "#080f1b",
@@ -426,18 +435,11 @@ function compactName(name: string): string {
     .replace("torso_joint", "torso ");
 }
 
-function qualityLabel(quality: ChannelQuality): string {
-  if (quality.origin === "missing") return "missing";
-  if (!quality.valid) return "invalid";
-  if (quality.origin === "derived" || quality.processing?.includes("derived"))
-    return "推算";
-  return quality.origin === "commanded" ? "cmd." : "meas.";
-}
-
 function drawJointPanel(
   ctx: CanvasRenderingContext2D,
   snapshot: FrameSnapshot,
   metadata: JointMetadata | null,
+  collapsedGroups: readonly string[] = [],
 ): void {
   ctx.fillStyle = COLORS.panel;
   ctx.fillRect(936, 70, 324, 584);
@@ -447,63 +449,213 @@ function drawJointPanel(
   label(ctx, "unit", 1101, 116, COLORS.muted);
   label(ctx, "quality", 1140, 116, COLORS.muted);
   label(ctx, "limit", 1252, 116, COLORS.muted, 14, "right");
-  snapshot.joints.forEach((value, index) => {
-    const descriptor = metadata?.joints?.[index];
-    const name =
-      descriptor?.name ??
-      metadata?.canonical_order?.[index] ??
-      canonicalMetadata.canonical_order[index];
-    const unit = descriptor?.unit ?? canonicalMetadata.joints[index].unit;
-    const quality = snapshot.quality[index];
-    const missing = !quality.valid || quality.origin === "missing";
-    const color = missing ? COLORS.missing : COLORS.text;
-    const y = 137 + index * 17.5;
-    if (index % 2 === 0) {
-      ctx.fillStyle = "#0f1c2c";
-      ctx.fillRect(942, y - 13, 312, 17.5);
+  for (const group of jointPanelGroups(snapshot, metadata, collapsedGroups)) {
+    const groupTop = 124 + group.start * 17.5;
+    const groupHeight = group.count * 17.5;
+    ctx.fillStyle = group.color;
+    ctx.fillRect(936, groupTop, 4, groupHeight - 1);
+    ctx.save();
+    ctx.translate(929, groupTop + groupHeight / 2);
+    ctx.rotate(-Math.PI / 2);
+    label(ctx, group.label, 0, 0, group.color, 11, "center");
+    ctx.restore();
+    if (group.collapsed) {
+      ctx.fillStyle = "#101e30";
+      ctx.fillRect(942, groupTop, 312, groupHeight - 1);
+      label(
+        ctx,
+        `${group.label} · ${group.count} 关节已收起`,
+        955,
+        groupTop + groupHeight / 2 + 5,
+        group.color,
+        14,
+      );
+      continue;
     }
-    const continuous =
-      (descriptor?.type ?? canonicalMetadata.joints[index].type) ===
-      "continuous";
-    const flags =
-      snapshot.limit_flags & (1 << index)
-        ? "LIMIT"
-        : snapshot.limit_warn_flags & (1 << index)
-          ? "WARN"
-          : continuous
-            ? "FREE"
-            : "—";
-    label(ctx, compactName(name), 948, y, color, 14);
-    const formatted =
-      Math.abs(value) >= 10000 ? value.toExponential(1) : value.toFixed(3);
-    label(ctx, formatted, 1093, y, color, 14, "right");
-    label(ctx, unit, 1101, y, color, 14);
-    // Sans-serif keeps full missing/derived labels legible within the narrow column.
-    ctx.font = "14px sans-serif";
-    ctx.fillStyle = missing
-      ? COLORS.missing
-      : qualityLabel(quality) === "推算"
-        ? COLORS.cyan
-        : COLORS.muted;
-    ctx.textAlign = "left";
-    ctx.fillText(qualityLabel(quality), 1140, y);
+    for (const row of group.rows) {
+      const y = 137 + row.index * 17.5;
+      if (row.index % 2 === 0) {
+        ctx.fillStyle = "#0f1c2c";
+        ctx.fillRect(942, y - 13, 312, 17.5);
+      }
+      const color = row.available ? COLORS.text : COLORS.missing;
+      const limitColor =
+        row.limitState === "exceeded"
+          ? COLORS.danger
+          : row.limitState === "warning"
+            ? COLORS.warning
+            : row.available
+              ? COLORS.cyan
+              : COLORS.missing;
+      label(ctx, compactName(row.name), 948, y, color, 14);
+      label(ctx, row.valueText, 1093, y, color, 14, "right");
+      label(ctx, row.unit, 1101, y, color, 14);
+      ctx.font = "12px sans-serif";
+      ctx.fillStyle = !row.available
+        ? COLORS.missing
+        : row.quality.origin === "derived"
+          ? COLORS.cyan
+          : COLORS.muted;
+      ctx.textAlign = "left";
+      ctx.fillText(row.quality.text, 1140, y, 77);
+      const flags =
+        row.limitState === "exceeded"
+          ? "LIM"
+          : row.limitState === "warning"
+            ? "WARN"
+            : row.limitState === "unlimited"
+              ? "∞"
+              : row.limitState === "normal"
+                ? "OK"
+                : "—";
+      label(ctx, flags, 1252, y, limitColor, 12, "right");
+      if (row.fraction !== null) {
+        ctx.fillStyle = COLORS.edge;
+        ctx.fillRect(1220, y + 1.5, 32, 2);
+        ctx.fillStyle = limitColor;
+        ctx.fillRect(1220, y + 1.5, 32 * row.fraction, 2);
+      }
+    }
+  }
+  label(ctx, "LIM 越限 · WARN 临界 · ∞ 无有限限位", 948, 640, COLORS.muted, 12);
+}
+
+function drawChassisHeading(
+  ctx: CanvasRenderingContext2D,
+  snapshot: FrameSnapshot,
+): void {
+  const x = 864,
+    y = 642;
+  const pose = snapshot.chassis;
+  ctx.beginPath();
+  ctx.arc(x, y, 20, 0, Math.PI * 2);
+  ctx.strokeStyle = COLORS.edge;
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  line(
+    ctx,
+    [
+      [x - 23, y],
+      [x + 23, y],
+    ],
+    COLORS.edge,
+  );
+  line(
+    ctx,
+    [
+      [x, y - 23],
+      [x, y + 23],
+    ],
+    COLORS.edge,
+  );
+  if (pose) {
+    const direction: Point = [Math.cos(pose.yaw), -Math.sin(pose.yaw)];
+    const tip: Point = [x + direction[0] * 18, y + direction[1] * 18];
+    line(ctx, [[x, y], tip], COLORS.cyan, 2);
+    line(
+      ctx,
+      [
+        [
+          tip[0] - direction[0] * 6 - direction[1] * 4,
+          tip[1] - direction[1] * 6 + direction[0] * 4,
+        ],
+        tip,
+        [
+          tip[0] - direction[0] * 6 + direction[1] * 4,
+          tip[1] - direction[1] * 6 - direction[0] * 4,
+        ],
+      ],
+      COLORS.cyan,
+      2,
+    );
+  } else label(ctx, "—", x, y + 5, COLORS.missing, 14, "center");
+  label(
+    ctx,
+    pose ? "yaw" : "N/A",
+    897,
+    y + 4,
+    pose ? COLORS.muted : COLORS.missing,
+    10,
+  );
+}
+
+function drawHistory(
+  ctx: CanvasRenderingContext2D,
+  snapshot: FrameSnapshot,
+  options: PresentationOptions,
+): void {
+  const rect = PRESENTATION_HISTORY_RECT;
+  ctx.fillStyle = COLORS.panel;
+  ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
+  const range = options.historyRange;
+  const matches =
+    options.historyCanvas &&
+    options.historyLogId === snapshot.log_id &&
+    range &&
+    Number.isFinite(range.from) &&
+    Number.isFinite(range.to) &&
+    range.to > range.from;
+  if (!matches) {
     label(
       ctx,
-      flags,
-      1252,
-      y,
-      missing
-        ? COLORS.missing
-        : flags === "LIMIT"
-          ? COLORS.danger
-          : flags === "WARN"
-            ? COLORS.warning
-            : COLORS.muted,
-      14,
-      "right",
+      "历史曲线 · 等待当前日志数据",
+      rect.x + rect.width / 2,
+      rect.y + rect.height / 2,
+      COLORS.muted,
+      16,
+      "center",
     );
-  });
-  label(ctx, "LIMIT exceeded · WARN near bound", 948, 640, COLORS.muted, 14);
+    return;
+  }
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(
+    options.historyCanvas!,
+    rect.x,
+    rect.y,
+    rect.width,
+    rect.height,
+  );
+  if (snapshot.log_time_s >= range.from && snapshot.log_time_s <= range.to) {
+    const cursor =
+      rect.x +
+      60 +
+      ((snapshot.log_time_s - range.from) / (range.to - range.from)) * 1160;
+    line(
+      ctx,
+      [
+        [cursor, 780],
+        [cursor, 1000],
+      ],
+      COLORS.cyan,
+      2,
+    );
+    ctx.fillStyle = COLORS.cyan;
+    ctx.beginPath();
+    ctx.moveTo(cursor - 5, 776);
+    ctx.lineTo(cursor + 5, 776);
+    ctx.lineTo(cursor, 783);
+    ctx.closePath();
+    ctx.fill();
+    label(
+      ctx,
+      `${snapshot.log_time_s.toFixed(3)} s`,
+      Math.max(110, Math.min(1190, cursor)),
+      1054,
+      COLORS.cyan,
+      14,
+      "center",
+    );
+  } else {
+    label(
+      ctx,
+      "当前帧位于所选曲线范围外",
+      640,
+      1054,
+      COLORS.muted,
+      14,
+      "center",
+    );
+  }
 }
 
 /** Paint an image and every visible reading from the same verified, frozen snapshot. */
@@ -512,6 +664,7 @@ export function drawPresentation(
   frame: DecodedFrame,
   snapshot: FrameSnapshot,
   jointMeta: JointMetadata | null,
+  options: PresentationOptions = {},
 ): void {
   const data = immutableSnapshot(snapshot);
   if (
@@ -537,7 +690,7 @@ export function drawPresentation(
   const rect = PRESENTATION_IMAGE_RECT;
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(frame.image, rect.x, rect.y, rect.width, rect.height);
-  drawJointPanel(ctx, data, jointMeta);
+  drawJointPanel(ctx, data, jointMeta, options.collapsedGroups);
   ctx.fillStyle = COLORS.panel;
   ctx.fillRect(20, 592, 900, 74);
   label(
@@ -576,6 +729,7 @@ export function drawPresentation(
     COLORS.muted,
     14,
   );
+  drawChassisHeading(ctx, data);
   ctx.fillStyle = COLORS.edge;
   ctx.fillRect(20, 674, 900, 10);
   ctx.fillStyle = COLORS.cyan;
@@ -588,8 +742,23 @@ export function drawPresentation(
     COLORS.muted,
     14,
   );
-  label(ctx, "Gray: missing / invalid", 948, 680, COLORS.missing, 14);
-  label(ctx, "Cyan: 推算 / derived", 948, 704, COLORS.cyan, 14);
+  label(
+    ctx,
+    "灰色：缺失 / 无效 · 破折号：不可用",
+    948,
+    680,
+    COLORS.missing,
+    12,
+  );
+  label(
+    ctx,
+    "来源：实测 / 指令 / 推算 · 插值 / 前填 / 默认",
+    948,
+    704,
+    COLORS.cyan,
+    11,
+  );
+  drawHistory(ctx, data, options);
 }
 
 /** Clear stale readings while no complete image/snapshot pair is available. */
@@ -618,4 +787,16 @@ export function drawEmptyPresentation(
   label(ctx, "CHASSIS  unavailable", 20, 637, COLORS.muted, 15);
   ctx.fillStyle = COLORS.edge;
   ctx.fillRect(20, 674, 900, 10);
+  const history = PRESENTATION_HISTORY_RECT;
+  ctx.fillStyle = COLORS.panel;
+  ctx.fillRect(history.x, history.y, history.width, history.height);
+  label(
+    ctx,
+    "历史曲线 · 等待同帧数据",
+    640,
+    history.y + history.height / 2,
+    COLORS.muted,
+    16,
+    "center",
+  );
 }
