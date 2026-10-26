@@ -100,12 +100,13 @@ export function jointPanelGroups(
       const quality = qualityPresentation(snapshot.quality[index]!);
       const available = quality.available && Number.isFinite(value);
       const { lower, upper } = descriptor;
-      const finiteRange =
+      const knownBounds =
         typeof lower === "number" &&
         typeof upper === "number" &&
         Number.isFinite(lower) &&
         Number.isFinite(upper) &&
-        upper > lower;
+        upper >= lower;
+      const finiteRange = knownBounds && upper > lower;
       const fraction =
         available && descriptor.type !== "continuous" && finiteRange
           ? Math.max(0, Math.min(1, (value - lower) / (upper - lower)))
@@ -116,7 +117,7 @@ export function jointPanelGroups(
           ? "unlimited"
           : !positionLimitEligible(snapshot.quality[index]!)
             ? "unassessed"
-            : !finiteRange
+            : !knownBounds
             ? "unknown"
             : (snapshot.limit_flags & (1 << index)) !== 0
               ? "exceeded"

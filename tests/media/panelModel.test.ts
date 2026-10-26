@@ -109,7 +109,25 @@ describe("joint panel semantics", () => {
     });
   });
 
-  it("retains prismatic units and treats absent or degenerate metadata bounds as unknown", () => {
+  it("uses captured limit flags for fixed-range joints without dividing by zero", () => {
+    const data = frame();
+    const meta = metadata();
+    meta.joints[17].lower = 0;
+    meta.joints[17].upper = 0;
+    data.quality[17] = { origin: "measured", valid: true };
+    data.joints[17] = 0.001;
+    data.limit_flags = 1 << 17;
+    expect(jointPanelGroups(data, meta)[2]!.rows[7]).toMatchObject({
+      fraction: null, limitState: "exceeded",
+    });
+    data.joints[17] = 0;
+    data.limit_flags = 0;
+    expect(jointPanelGroups(data, meta)[2]!.rows[7]).toMatchObject({
+      fraction: null, limitState: "normal",
+    });
+  });
+
+  it("retains prismatic units and treats absent or reversed metadata bounds as unknown", () => {
     const data = frame();
     data.quality[17] = { origin: "measured", valid: true };
     data.joints[17] = 0.025;
@@ -120,7 +138,7 @@ describe("joint panel semantics", () => {
     });
     const meta = metadata();
     meta.joints[17].lower = 1;
-    meta.joints[17].upper = 1;
+    meta.joints[17].upper = -1;
     expect(jointPanelGroups(data, meta)[2]!.rows[7]).toMatchObject({
       fraction: null,
       limitState: "unknown",
