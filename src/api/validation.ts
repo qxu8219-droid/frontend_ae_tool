@@ -1,6 +1,6 @@
 import Ajv2020, { type ValidateFunction } from "ajv/dist/2020";
 import type { components } from "./types.gen";
-import type { FrameSnapshot } from "./generated/frame-catalog.gen";
+import type { FrameSnapshot, FrameCatalog } from "./generated/frame-catalog.gen";
 import type {
   ChannelQuality,
   FrameIdentity,
@@ -35,6 +35,7 @@ const ajv = new Ajv2020({
 });
 const serverValidator = ajv.compile(serverSchema);
 const clientValidator = ajv.compile(clientSchema);
+const catalogValidator = ajv.compile(frameSchema);
 const frameValidator = ajv.compile({
   $defs: frameSchema.$defs,
   $ref: "#/$defs/FrameSnapshot",
@@ -322,6 +323,19 @@ export function validateFrameSnapshot(value: unknown): FrameSnapshot {
   );
   frame.quality.forEach(quality);
   return frame;
+}
+
+export function validateFrameCatalog(value: unknown): FrameCatalog {
+  validate(catalogValidator, value, "FrameCatalog");
+  const catalog = value as FrameCatalog;
+  requireContract(new Set(catalog.marker_pixels.map(pixel => pixel.join(','))).size === 64, 'Marker pixels must be distinct');
+  const ids = new Set<number>();
+  for (const frame of catalog.snapshots) {
+    validateFrameSnapshot(frame);
+    requireContract(frame.session_id === catalog.session_id && !ids.has(frame.capture_id), 'Catalog identities must be unique and in this session');
+    ids.add(frame.capture_id);
+  }
+  return catalog;
 }
 
 export function parseServerMessage(
