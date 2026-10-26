@@ -1,6 +1,6 @@
 import type { FrameSnapshot, JointMetadata } from "../domain/types";
 import { validateFrameSnapshot } from "../api/validation";
-import { jointPanelGroups } from "./panelModel";
+import { jointPanelGroups, positionLimitEligible } from "./panelModel";
 import {
   decodeStamp,
   MARKER_PIXELS,
@@ -117,8 +117,7 @@ function line(
 
 function jointColor(snapshot: FrameSnapshot, index: number): string {
   if (
-    !snapshot.quality[index].valid ||
-    snapshot.quality[index].origin === "missing"
+    !positionLimitEligible(snapshot.quality[index])
   )
     return COLORS.missing;
   if (snapshot.limit_flags & (1 << index)) return COLORS.danger;
@@ -507,6 +506,8 @@ function drawJointPanel(
               ? "∞"
               : row.limitState === "normal"
                 ? "OK"
+                : row.limitState === "unassessed"
+                  ? "未判"
                 : "—";
       label(ctx, flags, 1252, y, limitColor, 12, "right");
       if (row.fraction !== null) {

@@ -20,7 +20,7 @@ export interface QualityPresentation {
 }
 
 export type LimitState =
-  "unavailable" | "unlimited" | "unknown" | "normal" | "warning" | "exceeded";
+  "unavailable" | "unlimited" | "unknown" | "unassessed" | "normal" | "warning" | "exceeded";
 
 export interface JointPanelRow {
   index: number;
@@ -77,6 +77,12 @@ export function qualityPresentation(
   };
 }
 
+/** Mirrors the shared quality eligibility rule, without recomputing numerical limits. */
+export function positionLimitEligible(quality: ChannelQuality): boolean {
+  return quality.valid && (quality.origin === "measured" || quality.origin === "commanded") &&
+    !(quality.processing ?? []).some((value) => ["derived", "defaulted", "forward_filled"].includes(value));
+}
+
 /** The capture flags are authoritative; progress is bounded visually but values are never clamped. */
 export function jointPanelGroups(
   snapshot: FrameSnapshot,
@@ -108,7 +114,9 @@ export function jointPanelGroups(
         ? "unavailable"
         : descriptor.type === "continuous"
           ? "unlimited"
-          : !finiteRange
+          : !positionLimitEligible(snapshot.quality[index]!)
+            ? "unassessed"
+            : !finiteRange
             ? "unknown"
             : (snapshot.limit_flags & (1 << index)) !== 0
               ? "exceeded"

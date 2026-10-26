@@ -11,6 +11,20 @@ const frame = () => example<FrameSnapshot>("protocol/FrameSnapshot");
 const metadata = () => structuredClone(canonicalMetadata) as JointMetadata;
 
 describe("joint panel semantics", () => {
+  it.each([
+    { origin: "derived" as const, valid: true, processing: ["derived" as const], method: "estimate.v1" },
+    { origin: "measured" as const, valid: true, processing: ["forward_filled" as const] },
+    { origin: "commanded" as const, valid: true, processing: ["defaulted" as const] },
+  ])("displays uncertain values without claiming assessed position limits: %j", (quality) => {
+    const data = frame();
+    data.joints[0] = 2;
+    data.quality[0] = quality;
+    data.limit_flags = 1;
+    data.limit_warn_flags = 1;
+    expect(jointPanelGroups(data, null)[0]!.rows[0]).toMatchObject({
+      available: true, valueText: "2.000", limitState: "unassessed",
+    });
+  });
   it("keeps all 28 canonical indices in their group when a group is collapsed", () => {
     const groups = jointPanelGroups(frame(), null, ["left"]);
     expect(groups.map((group) => group.rows.map((row) => row.index))).toEqual([
