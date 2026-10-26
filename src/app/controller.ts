@@ -79,6 +79,8 @@ export function createWorkbenchController(options: {
     requests = new AbortController(),
     queue: Promise<unknown> = Promise.resolve(),
     disposed = false;
+  let controlIntent = 0, settledIntent = 0, socketRestored = false, mediaStalled = false, fatal = false;
+  let presentedLayout: { sourceWidth: number; sourceHeight: number; markerPixels: ReadonlyArray<readonly [number, number]> } | null = null;
   const pendingAlerts: Array<
     Extract<WsServerMessage, { type: "alert" }>["data"]
   > = [];
@@ -93,9 +95,11 @@ export function createWorkbenchController(options: {
         image,
         snapshot,
         session.jointMeta,
-        options.getPresentation?.(),
+        { ...options.getPresentation?.(), realMedia: media.capabilities.kind === 'whep' },
       );
+      presentedLayout = { sourceWidth: image.width, sourceHeight: image.height, markerPixels: image.markerPixels ?? MARKER_PIXELS };
       telemetry.accept(snapshot, session.socket.generation);
+      session.syncState = 'paired';
       history.present(snapshot);
       for (let i = pendingAlerts.length - 1; i >= 0; i--) {
         const alert = pendingAlerts[i];
@@ -111,12 +115,18 @@ export function createWorkbenchController(options: {
       return true;
     },
   });
+  function updateHold() {
+    session.waitingForControl = controlIntent > settledIntent;
+    sync.setSuspended(session.waitingForControl || !socketRestored || mediaStalled || fatal);
+  }
   function barrier(value: PlaybackSnapshot) {
     sync.setBarrier(
       value.control_seq,
       value.playback_epoch,
       value.log_id ?? undefined,
     );
+    for (let i = pendingAlerts.length - 1; i >= 0; i--)
+      if (pendingAlerts[i].log_id !== value.log_id || pendingAlerts[i].playback_epoch !== value.playback_epoch) pendingAlerts.splice(i, 1);
     if (
       value.log_id &&
       (history.logId !== value.log_id || history.sessionId !== value.session_id)
@@ -166,14 +176,33 @@ export function createWorkbenchController(options: {
       case "connection_snapshot": {
         session.jointMeta = message.data.joint_meta;
         session.workerPhase = message.data.worker.phase;
+        socketRestored = true;
+        fatal ||= message.data.worker.phase === 'error' || message.data.worker.phase === 'stopped';
+        mediaStalled = message.data.sync.state === 'stalled';
+        session.syncState = message.data.sync.state;
         if (playback.update(message.data.playback))
           barrier(message.data.playback);
+        updateHold();
+        if (fatal || mediaStalled) {
+          media.disconnect(); ui.mediaStatus = '视频或 Worker 暂不可用，画面和数据共同保持'; break;
+        }
+        const ticket = lifecycle, connectionGeneration = generation;
         media.connect(
           message.session_id,
-          (frame) => sync.addFrame(frame),
-          (status) => {
-            ui.mediaStatus = status;
+          (frame) => {
+            if (disposed || ticket !== lifecycle || connectionGeneration !== session.socket.generation || frame.sessionId !== session.sid) {
+              frame.close(); return;
+            }
+            if (media.capabilities.kind === 'whep') {
+              if (!frame.snapshot) { frame.close(); return; }
+              sync.addSnapshot(frame.snapshot);
+            }
+            sync.addFrame(frame);
           },
+          (status) => {
+            if (ticket === lifecycle && connectionGeneration === session.socket.generation && !disposed) ui.mediaStatus = status;
+          },
+          message.data.video,
         );
         ui.log("连接已恢复，等待匹配画面");
         break;
@@ -190,7 +219,9 @@ export function createWorkbenchController(options: {
         }
         break;
       case "frame_snapshot":
-        sync.addSnapshot(message.data);
+        // Real frames carry the snapshot selected from their own SEI catalog.
+        // A supplemental WS pose must never replace that evidence.
+        if (media.capabilities.kind !== 'whep') sync.addSnapshot(message.data);
         break;
       case "system":
         if (message.data.worker)
@@ -200,11 +231,14 @@ export function createWorkbenchController(options: {
           message.data.event === "session_error" ||
           message.data.worker?.phase === "error"
         ) {
+          fatal = true; session.syncState = 'stalled'; updateHold();
           media.disconnect();
-          sync.dispose();
           ui.mediaStatus = "Worker 已停止，画面和数据共同保持";
           ui.error = "Worker 故障，请关闭会话并重新创建，再从日志起点加载。";
           ui.log(ui.error);
+        } else if (message.data.event === 'mediamtx_unreachable') {
+          mediaStalled = true; session.syncState = 'stalled'; updateHold(); media.disconnect();
+          ui.mediaStatus = '媒体连接中断，画面和数据共同保持';
         } else if (message.data.message) ui.log(message.data.message);
         break;
       case "alert": {
@@ -238,11 +272,14 @@ export function createWorkbenchController(options: {
       const changed = status.generation !== session.socket.generation;
       session.socket = status;
       if (changed) {
+        socketRestored = status.state === 'open';
         media.disconnect();
         sync.reset(session.sid ?? "", status.generation);
         telemetry.context(session.sid ?? "", status.generation);
         if (playback.server) barrier(playback.server);
       }
+      if (status.state === 'open') socketRestored = true;
+      updateHold();
       if (status.state === "reconnecting" || status.state === "error")
         ui.mediaStatus = "连接重建中，画面和数据共同保持";
     },
@@ -269,6 +306,8 @@ export function createWorkbenchController(options: {
     { delayMs: 0, deduplicate: false },
   );
   function seek(time: number) {
+    if (disposed || !session.sid || !Number.isFinite(time) || time < 0) return;
+    controlIntent++; updateHold();
     seekScheduler.request(time);
     seekScheduler.flush();
   }
@@ -286,6 +325,8 @@ export function createWorkbenchController(options: {
   ): Promise<void> {
     const sid = session.sid,
       ticket = lifecycle;
+    if (!sid || disposed) return Promise.resolve();
+    const intent = ++controlIntent; updateHold();
     const result = queue.then(async () => {
       if (!sid || ticket !== lifecycle || disposed) return;
       await action(async () => {
@@ -298,6 +339,7 @@ export function createWorkbenchController(options: {
         if (ticket !== lifecycle || sid !== session.sid) return;
         if (playback.update(ack.playback)) barrier(ack.playback);
       }, ticket);
+      if (ticket === lifecycle && intent === controlIntent) { settledIntent = intent; updateHold(); }
     });
     queue = result.catch(() => {});
     return result;
@@ -368,6 +410,7 @@ export function createWorkbenchController(options: {
     history.reset();
     queue = Promise.resolve();
     requests = new AbortController();
+    controlIntent = settledIntent = 0; socketRestored = false; mediaStalled = fatal = false; presentedLayout = null;
     media.disconnect();
     socket.disconnect();
     sync.dispose();
@@ -483,9 +526,9 @@ export function createWorkbenchController(options: {
       mode: options.runtime ? "mock" : "real",
     }),
     layout: () => ({
-      sourceWidth: SOURCE_WIDTH,
-      sourceHeight: SOURCE_HEIGHT,
-      markerPixels: MARKER_PIXELS.map((pixel) => [pixel[0], pixel[1]] as const),
+      sourceWidth: presentedLayout?.sourceWidth ?? SOURCE_WIDTH,
+      sourceHeight: presentedLayout?.sourceHeight ?? SOURCE_HEIGHT,
+      markerPixels: (presentedLayout?.markerPixels ?? MARKER_PIXELS).map((pixel) => [pixel[0], pixel[1]] as const),
       imageRect: PRESENTATION_IMAGE_RECT,
     }),
     source: () =>

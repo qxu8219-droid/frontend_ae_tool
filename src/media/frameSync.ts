@@ -21,6 +21,7 @@ export class FrameSynchronizer {
   private pending: number | null = null;
   private presented = 0;
   private dropped = 0;
+  private suspended = false;
   private readonly capacity: number;
   private readonly schedule: (callback: () => void) => number;
   private readonly cancel: (handle: number) => void;
@@ -65,6 +66,10 @@ export class FrameSynchronizer {
     this.frames.clear();
     this.snapshots.clear();
   }
+  setSuspended(value: boolean) {
+    if (value && !this.suspended) this.clear();
+    this.suspended = value;
+  }
   setBarrier(controlSeq: number, epoch?: number, logId?: string) {
     this.control = Math.max(this.control, controlSeq);
     if (epoch !== undefined) this.epoch = Math.max(this.epoch, epoch);
@@ -79,6 +84,7 @@ export class FrameSynchronizer {
   }
   private allowed(data: FrameSnapshot) {
     return (
+      !this.suspended &&
       data.session_id === this.sessionId &&
       data.capture_id > this.lastCapture &&
       data.control_seq >= this.control &&
@@ -100,6 +106,7 @@ export class FrameSynchronizer {
   }
   addFrame(frame: DecodedFrame) {
     if (
+      this.suspended ||
       frame.sessionId !== this.sessionId ||
       frame.captureId <= this.lastCapture
     ) {
@@ -162,6 +169,7 @@ export class FrameSynchronizer {
       capacity: this.capacity,
       presented: this.presented,
       dropped: this.dropped,
+      suspended: this.suspended,
       lastCapture: this.lastCapture,
     };
   }

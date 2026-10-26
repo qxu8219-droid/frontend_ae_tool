@@ -29,6 +29,7 @@ export const PRESENTATION_HISTORY_RECT = Object.freeze({
 });
 
 export interface PresentationOptions {
+  realMedia?: boolean;
   collapsedGroups?: readonly string[];
   historyCanvas?: HTMLCanvasElement | null;
   historyLogId?: string | null;
@@ -677,8 +678,8 @@ export function drawPresentation(
     );
   }
   const ctx = preparePresentation(canvas);
-  label(ctx, "MOCK ROBOT REPLAY", 20, 32, COLORS.text, 20);
-  label(ctx, "Schematic fixture / no USD model", 20, 54, COLORS.muted, 14);
+  label(ctx, options.realMedia ? "ISAAC SIM ROBOT REPLAY" : "MOCK ROBOT REPLAY", 20, 32, COLORS.text, 20);
+  label(ctx, options.realMedia ? "Isaac Sim 6.2 / verified image + snapshot" : "Schematic fixture / no USD model", 20, 54, COLORS.muted, 14);
   label(
     ctx,
     `CAPTURE ${data.capture_id}  /  EPOCH ${data.playback_epoch}  /  CONTROL ${data.control_seq}`,

@@ -13,6 +13,13 @@ import { example } from "../api/fixtures";
 beforeEach(() => setActivePinia(createPinia()));
 afterEach(() => vi.unstubAllGlobals());
 
+it('ignores invalid or sessionless timeline intents without freezing future presentation', () => {
+  const controller = createWorkbenchController({ getCanvas: () => null, source, socketFactory });
+  controller.seek(1); expect(useSessionStore().waitingForControl).toBe(false);
+  useSessionStore().sid = 's'; controller.seek(NaN); controller.seek(-1);
+  expect(useSessionStore().waitingForControl).toBe(false); controller.dispose();
+});
+
 it("rejects duplicate creation while starting or when a session is active", async () => {
   let release!: (value: unknown) => void;
   let created = 0;
@@ -213,11 +220,31 @@ it("serializes controls so an older request cannot arrive after the latest inten
   await Promise.resolve();
   await Promise.resolve();
   expect(order).toEqual([3]);
+  expect(controller.diagnostics.sync().suspended).toBe(true);
   release(ack(3));
   await Promise.all([first, second]);
   expect(order).toEqual([3, 5]);
   expect(usePlaybackStore().server?.target_position?.log_time_s).toBe(5);
   controller.dispose();
+});
+
+it('passes real video capabilities, ignores supplemental WS poses, and holds on media faults', () => {
+  let callbacks!: SessionSocketOptions;
+  const realSource = { ...source, capabilities: { ...source.capabilities, kind: 'whep' as const }, connect: vi.fn(), disconnect: vi.fn() };
+  const controller = createWorkbenchController({ getCanvas: () => null, source: realSource,
+    socketFactory: options => { callbacks = options; return socketFactory(); } });
+  const first = example('service/ws_connection_snapshot'); const sid = first.session_id;
+  useSessionStore().sid = sid;
+  callbacks.onStatus({ state: 'connecting', generation: 1 });
+  callbacks.onMessage(first, 1);
+  expect(realSource.connect).toHaveBeenLastCalledWith(sid, expect.any(Function), expect.any(Function), first.data.video);
+  callbacks.onMessage(example('service/ws_frame_snapshot'), 1);
+  expect(controller.diagnostics.sync().snapshots).toBe(0);
+  const fault = { ...example('service/ws_system'), session_id: sid,
+    data: { event: 'mediamtx_unreachable', message: 'test failure' } };
+  callbacks.onMessage(fault, 1);
+  expect(controller.diagnostics.sync().suspended).toBe(true);
+  expect(useUiStore().mediaStatus).toContain('共同保持'); controller.dispose();
 });
 
 it("uses the socket generation as the single authority across close and recreate", async () => {

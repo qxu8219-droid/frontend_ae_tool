@@ -43,10 +43,19 @@ const loaded = computed(
 );
 const pending = computed(
   () =>
+    session.waitingForControl ||
     !!playback.server &&
     playback.server.control_seq > (telemetry.presented?.control_seq ?? -1),
 );
 const displayed = computed(() => telemetry.presented);
+const pendingText = computed(() => {
+  if (session.waitingForControl) return '正在提交操作，图像与数据共同保持';
+  const state = playback.server;
+  if (state?.rendered_identity?.control_seq === state?.control_seq) return '仿真已渲染，等待同帧画面与数据共同呈现';
+  if (state?.target_position && state.applied_position && state.applied_position.target_seq >= state.target_position.target_seq)
+    return '仿真已应用目标，等待同帧画面与数据共同呈现';
+  return '操作已接受，等待仿真应用目标与同帧画面';
+});
 const busy = computed(() => ui.busy > 0);
 const phaseNames: Record<string, string> = {
   disconnected: "未创建",
@@ -65,6 +74,10 @@ const statusText = computed(() =>
       ? "等待首帧"
       : session.socket.state !== "open"
         ? "连接重建中"
+        : session.syncState === 'stalled'
+          ? '媒体中断 · 共同保持'
+        : pending.value
+          ? '等待目标画面'
         : now.value - telemetry.wallMs > 1000
           ? "等待配对"
           : "同步呈现",
@@ -349,7 +362,7 @@ onBeforeUnmount(() => {
                 @seek="controller.seek"
               />
               <p v-if="pending" class="pending-note">
-                操作已接受，等待匹配画面与数据共同呈现
+                {{ pendingText }}
               </p>
               <div class="control-row">
                 <div class="play-controls">
@@ -558,7 +571,7 @@ onBeforeUnmount(() => {
         ><span>{{
           runtime
             ? "Mock 演示不代表 IsaacSim 或真机日志已接入。"
-            : "真实媒体适配将在正式联调时接入。"
+            : "真实仿真回放 · 图像与数据通过同帧核验后共同呈现。"
         }}</span>
       </footer>
     </div>

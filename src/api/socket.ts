@@ -166,8 +166,8 @@ export class SessionSocket {
           throw new Error("WS connection identity changed");
         if (message.seq !== this.incomingSeq + 1)
           throw new Error("WS sequence gap or duplicate requires resync");
-        if (message.type === "connection_snapshot")
-          throw new Error("Unexpected second connection snapshot");
+        // The configured backend refreshes complete metadata on control/media
+        // resync within the same connection. Identity and contiguous seq still apply.
       }
     } catch (error) {
       this.resync(

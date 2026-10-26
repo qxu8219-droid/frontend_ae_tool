@@ -155,7 +155,6 @@ describe("SessionSocket connection lifecycle", () => {
     "wrong-session",
     "wrong-connection",
     "duplicate",
-    "second-snapshot",
   ])("resyncs after %s without delivering the invalid payload", (kind) => {
     const { socket, messages, statuses } = setup();
     socket.connect("example-session");
@@ -171,14 +170,23 @@ describe("SessionSocket connection lifecycle", () => {
             ? health(1, "example-session", "other")
             : kind === "duplicate"
               ? health(0)
-              : kind === "second-snapshot"
-                ? snapshot("example-session", "connection-1", 1)
-                : { ...health(1), extra: true };
+              : { ...health(1), extra: true };
     transport.receive(bad);
     expect(messages).toHaveLength(kind === "missing-snapshot" ? 0 : 1);
     expect(transport.readyState).toBe(3);
     expect(statuses.at(-1)?.state).toBe("reconnecting");
     socket.disconnect();
+  });
+
+  it('accepts complete resync snapshots in the same connection with contiguous sequence', () => {
+    const { socket, messages, statuses } = setup();
+    socket.connect('example-session'); const transport = FakeSocket.instances[0]!;
+    transport.open(); transport.receive(snapshot());
+    const generation = statuses.at(-1)!.generation;
+    transport.receive(snapshot('example-session', 'connection-1', 1));
+    transport.receive(health(2));
+    expect(messages).toHaveLength(3); expect(transport.readyState).toBe(1);
+    expect(statuses.at(-1)).toMatchObject({ state: 'open', generation }); socket.disconnect();
   });
 
   it("emits complete validated envelopes, resets outgoing sequence, and restores selected telemetry rate", () => {

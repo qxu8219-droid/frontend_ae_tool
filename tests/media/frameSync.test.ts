@@ -74,6 +74,16 @@ function setup(capacity = 3) {
   };
 }
 describe("same-frame presentation gate", () => {
+  it('holds queued and late frames until the latest local intent is accepted', () => {
+    const { sync, shown, flush } = setup(); const queued = image(1);
+    sync.addSnapshot(snapshot(1)); sync.addFrame(queued);
+    sync.setSuspended(true); flush(); expect(shown).toHaveLength(0); expect(queued.closes).toBe(1);
+    const late = image(2); sync.addFrame(late); sync.addSnapshot(snapshot(2)); flush();
+    expect(late.closes).toBe(1); expect(sync.diagnostics().snapshots).toBe(0);
+    sync.setBarrier(2, 1, 'l'); sync.setSuspended(false);
+    sync.addFrame(image(3)); sync.addSnapshot(snapshot(3, 2, 1)); flush();
+    expect(shown.map(frame => frame.capture_id)).toEqual([3]);
+  });
   it("holds each side until its exact image identity arrives", () => {
     const { sync, shown, flush } = setup();
     const first = image(1),

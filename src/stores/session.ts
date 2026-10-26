@@ -6,6 +6,7 @@ import type { HealthTelemetryData } from "../api/generated/ws-server.gen";
 export const useSessionStore = defineStore("session", () => {
   const sid = ref<string | null>(null),
     workerPhase = ref<string>("disconnected");
+  const syncState = ref('awaiting_pair'), waitingForControl = ref(false);
   const socket = shallowRef<SocketStatus>({ state: "closed", generation: 0 });
   const scenes = shallowRef<Schema["Scene"][]>([]),
     robots = shallowRef<Schema["Robot"][]>([]);
@@ -17,6 +18,7 @@ export const useSessionStore = defineStore("session", () => {
   function reset() {
     sid.value = null;
     workerPhase.value = "disconnected";
+    syncState.value = 'awaiting_pair'; waitingForControl.value = false;
     health.value = null;
     healthWallTime.value = 0;
     socket.value = { state: "closed", generation: socket.value.generation };
@@ -24,6 +26,8 @@ export const useSessionStore = defineStore("session", () => {
   return {
     sid,
     workerPhase,
+    syncState,
+    waitingForControl,
     socket,
     scenes,
     robots,
