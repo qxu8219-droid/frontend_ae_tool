@@ -30,6 +30,7 @@ import { createHistoryLoader } from "./history";
 import { useHistoryStore } from "../stores/history";
 import { createAnnotationLoader } from "./annotations";
 import { useAnnotationStore } from "../stores/annotations";
+import { createBrowserOwnedSession } from './ownedSession';
 
 export interface MockBridge {
   setScenario(id: ScenarioId): void;
@@ -68,6 +69,8 @@ export function createWorkbenchController(options: {
   const api =
     options.api ??
     createApiClient(import.meta.env.VITE_API_BASE_URL || "/api/v1");
+  const ownership = options.runtime ? null : createBrowserOwnedSession(import.meta.env.VITE_API_BASE_URL || '/api/v1');
+  if (ownership?.recoverySid) ui.cleanupSessionId = ownership.recoverySid;
   const media = options.source ?? useVideoSource(options.runtime);
   const history = useHistoryStore(),
     historyLoader = createHistoryLoader(api);
@@ -360,8 +363,18 @@ export function createWorkbenchController(options: {
   }
   async function initialize() {
     await action(async () => {
-      const ticket = lifecycle,
-        [scenes, robots] = await Promise.all([
+      const ticket = lifecycle;
+      let recoveryError: unknown;
+      const recoverSid = ownership?.recoverySid;
+      if (recoverSid && ui.cleanupSessionId === recoverSid) {
+        try {
+          await deleteTrackedSession(recoverSid);
+          if (ui.cleanupSessionId === recoverSid) ui.cleanupSessionId = null;
+          ui.log('刷新前的会话已清理，请重新创建并从头载入日志');
+        } catch (error) { recoveryError = error; }
+      }
+      if (ticket !== lifecycle || disposed) return;
+      const [scenes, robots] = await Promise.all([
           api.scenes({ signal: requests.signal }),
           api.robots({ signal: requests.signal }),
         ]);
@@ -376,7 +389,14 @@ export function createWorkbenchController(options: {
         });
         if (ticket === lifecycle && !disposed) session.jointMeta = meta;
       }
+      if (recoveryError && ui.cleanupSessionId === recoverSid)
+        throw new Error(`刷新前的会话尚未清理，请点击“重试关闭”后重新创建：${recoveryError instanceof Error ? recoveryError.message : String(recoveryError)}`);
     });
+  }
+  async function deleteTrackedSession(sid: string) {
+    try { await api.deleteSession(sid); }
+    catch (error) { if (!(error instanceof ApiError && error.status === 404)) throw error; }
+    ownership?.release(sid);
   }
   async function create() {
     if (disposed || ui.creating || session.sid || ui.cleanupSessionId) return;
@@ -396,13 +416,24 @@ export function createWorkbenchController(options: {
         if (ticket !== lifecycle || disposed) {
           ui.cleanupSessionId = result.session_id;
           try {
-            await api.deleteSession(result.session_id);
+            await deleteTrackedSession(result.session_id);
             if (ui.cleanupSessionId === result.session_id)
               ui.cleanupSessionId = null;
           } catch (error) {
             if (!disposed) report(error);
           }
           return;
+        }
+        // A cancelled response may arrive after a newer create has succeeded.
+        // Only the live creation may replace this document's ownership receipt.
+        try { ownership?.remember(result.session_id); }
+        catch (error) {
+          ui.cleanupSessionId = result.session_id;
+          try {
+            await deleteTrackedSession(result.session_id);
+            if (ui.cleanupSessionId === result.session_id) ui.cleanupSessionId = null;
+          } catch { /* Retain the in-memory handle so Close can retry. */ }
+          throw error;
         }
         session.sid = result.session_id;
         session.workerPhase = "booting";
@@ -442,7 +473,7 @@ export function createWorkbenchController(options: {
     ui.mediaStatus = "等待会话";
     empty();
     await action(async () => {
-      if (sid) await api.deleteSession(sid);
+      if (sid) await deleteTrackedSession(sid);
       if (ui.cleanupSessionId === sid) ui.cleanupSessionId = null;
     });
   }
@@ -519,6 +550,7 @@ export function createWorkbenchController(options: {
   function dispose() {
     if (disposed) return;
     disposed = true;
+    ownership?.dispose();
     ++lifecycle;
     requests.abort();
     seekScheduler.dispose();
