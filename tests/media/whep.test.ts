@@ -68,6 +68,20 @@ it('rejects a foreign resource location and bounds repeated connection failures'
   expect(fetch.mock.calls.every(call => String(call[0]).startsWith('http://127.0.0.1:6189/'))).toBe(true);
   run.source.disconnect();
 });
+it('renews the consecutive-failure budget after a verified frame across six separate recoveries', async () => {
+  vi.useFakeTimers();
+  const run = setup(); run.connect(); await settle();
+  for (let cycle = 0; cycle < 6; cycle++) {
+    const frame = { displayWidth: 1280, displayHeight: 720, close: vi.fn() };
+    run.workers.at(-1).onmessage({ data: { type: 'pair', id: cycle + 1, frame,
+      snapshot: catalog().snapshots[0], markerPixels: catalog().marker_pixels } });
+    run.frames.at(-1).close();
+    const peer = run.peers.at(-1); peer.connectionState = 'disconnected'; peer.onconnectionstatechange();
+    await vi.advanceTimersByTimeAsync(10000); await settle();
+    expect(run.peers).toHaveLength(cycle + 2);
+  }
+  run.source.disconnect();
+});
 it('reports unsupported capabilities without acquiring or inventing media', () => {
   const source = createWhepVideoSource({ supported: () => false }); const status = vi.fn(), frame = vi.fn();
   source.connect('s', frame, status, video());

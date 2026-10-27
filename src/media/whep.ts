@@ -114,6 +114,7 @@ export function createWhepVideoSource(dependencies: {
           try {
             if (!connection.firstFrame) {
               connection.firstFrame = true;
+              attempts = 0;
               config.onStatus?.('真实视频已连接，图像与数据按同帧核验', 'ready');
             }
             if (current()) config.onFrame(managed); else managed.close();
