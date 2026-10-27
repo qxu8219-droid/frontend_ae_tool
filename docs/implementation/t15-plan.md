@@ -34,9 +34,9 @@ Files: src/media/h264.ts, catalog.ts, decoder.ts, receiver.worker.ts; tests/medi
 
 Interfaces: extractAccessUnit(bytes,uuid) -> {annexB,codec,keyframe,catalog}; validateCatalog(value) -> FrameCatalog; selectSnapshot(catalog,samples,sid) -> FrameSnapshot; DecoderPipeline.push(bytes)/release(id)/close()，注入解码器和像素读取用于边界测试。
 
-- [ ] RED：AnnexB/AVCC/NAL、转义/截断/重复UUID、正式目录语义；像素CRC决定帧且忽略poll；解码器旧回调、缺元数据后IDR恢复、背压/过期/关闭。
-- [ ] GREEN：纯解析与正式Schema校验；有界AU关联及VideoFrame所有权，worker只转交已验证配对。
-- [ ] `npm test -- tests/media/h264.test.ts tests/media/decoder.test.ts` 预期全部PASS；`npm run typecheck` PASS；提交独立媒体核心。
+- [x] RED：AnnexB/AVCC/NAL、转义/截断/重复UUID、正式目录语义；像素CRC决定帧且忽略poll；解码器旧回调、缺元数据后IDR恢复、背压/过期/关闭。
+- [x] GREEN：纯解析与正式Schema校验；有界AU关联及VideoFrame所有权，worker只转交已验证配对。
+- [x] `npm test -- tests/media/h264.test.ts tests/media/decoder.test.ts` 预期全部PASS；`npm run typecheck` PASS；提交独立媒体核心。
 
 ## Task 2: 真实 WHEP 视频源
 
@@ -44,9 +44,9 @@ Files: src/media/whep.ts, types.ts; src/composables/useVideoSource.ts; tests/med
 
 Interfaces: VideoSource.connect(sid,onFrame,onStatus,video?) 幂等更新端点；DecodedFrame携带可选已验证snapshot/markerPixels；disconnect同步失效本代资源，异步有界DELETE；diagnostics只读。
 
-- [ ] RED：未publishing不连接、同端点重复快照不重启、换sid/url、协商取消迟到资源清理、错误来源、worker迟到帧close、连接失败有限重试、不支持浏览器明确提示。
-- [ ] GREEN：原生PC/Worker和WHEP非trickle握手（ICE5s、POST8s、DELETE3s）；同源资源URL验证；丢失恢复保持旧呈现；development/preview跨源隔离headers。
-- [ ] `npm test -- tests/media/whep.test.ts tests/media/composable.test.ts` PASS；构建PASS；提交。
+- [x] RED：未publishing不连接、同端点重复快照不重启、换sid/url、协商取消迟到资源清理、错误来源、worker迟到帧close、连接失败有限重试、不支持浏览器明确提示。
+- [x] GREEN：原生PC/Worker和WHEP非trickle握手（ICE5s、POST8s、DELETE3s）；同源资源URL验证；丢失恢复保持旧呈现；development/preview跨源隔离headers。
+- [x] `npm test -- tests/media/whep.test.ts tests/media/composable.test.ts` PASS；构建PASS；提交。
 
 ## Task 3: 工作台状态、控制与共同呈现
 
@@ -54,14 +54,16 @@ Files: src/api/socket.ts; src/app/controller.ts; src/media/frameSync.ts,renderer
 
 Interfaces: FrameSynchronizer.setSuspended(boolean) 清除待呈现帧、保留同sid捕获水位；controller消费real paired frame，Mock仍消费独立WS；diagnostics.layout返回已呈现源几何。
 
-- [ ] RED：同connection连续seq完整快照合法；重复快照不重启媒体；stalled/错误/WS重连时共同保持；本地最新控制意图在ack前冻结，迟到旧ack不解除；同代次告警保留且旧代次丢弃。
-- [ ] GREEN：更新媒体配置、控制屏障、来源标识和已接受/已应用/已呈现状态；保留Mock测试及既有界面。
-- [ ] 全部前端单测、build、14项既有Chrome回归PASS；提交。
+- [x] RED：同connection连续seq完整快照合法；重复快照不重启媒体；stalled/错误/WS重连时共同保持；本地最新控制意图在ack前冻结，迟到旧ack不解除；同代次告警保留且旧代次丢弃。
+- [x] GREEN：更新媒体配置、控制屏障、来源标识和已接受/已应用/已呈现状态；保留Mock测试及既有界面。
+- [x] 全部前端单测、build、14项既有Chrome回归PASS；提交。
 
 ## Task 4: 实际工作台集成、证据与审查
 
 Files: e2e/real-replay.spec.ts、独立playwright真实运行配置/诊断oracle；backend/scripts/validate_frontend.py（本次拥有的实际服务/SDK）；运行说明、验证记录、开发清单。
 
-- [ ] 使用正式UI创建、上传合成CSV、核对映射后激活；真实页面操作play/0.1x/10x/pause/seek/连续seek/拖动/前后step/末尾/stop、WS重连、关闭重建。独立读取实际canvas图像ID/CRC、面板文本、进度/曲线游标，并以原CSV作值oracle。
-- [ ] 浏览器实际画面观察、健康移动窗口帧率和共同延迟；记录WS/媒体/worker故障及首帧重载。资源清理，不终止已有服务。
-- [ ] 后端回归、前端单测/build/既有Chrome、正式真实Chrome、Schema一致检查通过；一次最终独立审查与必要RED→GREEN修复；更新进度并提交。
+- [x] 使用正式UI创建、上传合成CSV、核对映射后激活；真实页面操作play/0.1x/10x/pause/seek/连续seek/拖动/前后step/末尾/stop、WS重连、关闭重建。独立读取实际canvas图像ID/CRC、面板文本、进度/曲线游标，并以原CSV作值oracle。
+- [x] 浏览器实际画面观察、健康移动窗口帧率和共同延迟；记录WS/媒体/worker故障及首帧重载。资源清理，不终止已有服务。
+- [x] 后端回归、前端单测/build/既有Chrome、正式真实Chrome、Schema一致检查通过；一次最终独立审查与必要RED→GREEN修复；更新进度并提交。
+
+完结（2026-10-27）：全部任务完成。真实探针 real-5 通过；独立审查的连续重试计数问题已 RED→GREEN 修复，前端215项全量测试通过。证据见 ../validation/t15-status.md；下一项T16。
