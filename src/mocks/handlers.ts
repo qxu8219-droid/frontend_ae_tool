@@ -326,6 +326,9 @@ export function createMockHandlers(runtime: MockRuntime) {
         runtime.getLogChannels(path(context, "sid"), path(context, "lid")),
       ),
     ),
+    get("/sessions/:sid/logs/:lid/annotations", (context) =>
+      HttpResponse.json(runtime.getLogAnnotations(path(context, "sid"), path(context, "lid"))),
+    ),
     http.get(
       `${api}/sessions/:sid/logs/:lid/curve`,
       guarded((context) =>

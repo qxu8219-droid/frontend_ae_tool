@@ -28,6 +28,8 @@ import { useUiStore } from "../stores/ui";
 import { createSeekScheduler } from "./timeline";
 import { createHistoryLoader } from "./history";
 import { useHistoryStore } from "../stores/history";
+import { createAnnotationLoader } from "./annotations";
+import { useAnnotationStore } from "../stores/annotations";
 
 export interface MockBridge {
   setScenario(id: ScenarioId): void;
@@ -69,6 +71,7 @@ export function createWorkbenchController(options: {
   const media = options.source ?? useVideoSource(options.runtime);
   const history = useHistoryStore(),
     historyLoader = createHistoryLoader(api);
+  const annotations = useAnnotationStore(), annotationLoader = createAnnotationLoader(api);
   const configuredLimit = Number(import.meta.env.VITE_MAX_UPLOAD_BYTES);
   const maxUploadBytes = options.runtime
     ? 1024 * 1024
@@ -121,6 +124,11 @@ export function createWorkbenchController(options: {
     sync.setSuspended(session.waitingForControl || !socketRestored || mediaStalled || mediaTransportStalled || fatal);
   }
   function barrier(value: PlaybackSnapshot) {
+    if (value.log_id && (annotations.logId !== value.log_id || annotations.sessionId !== value.session_id)) {
+      void annotationLoader.load(value.session_id, value.log_id);
+    } else if (!value.log_id) {
+      annotationLoader.cancel(); annotations.reset();
+    }
     sync.setBarrier(
       value.control_seq,
       value.playback_epoch,
@@ -280,6 +288,8 @@ export function createWorkbenchController(options: {
         media.disconnect();
         sync.reset(session.sid ?? "", status.generation);
         telemetry.context(session.sid ?? "", status.generation);
+        annotationLoader.cancel();
+        if (playback.server?.log_id) void annotationLoader.load(playback.server.session_id, playback.server.log_id);
         if (playback.server) barrier(playback.server);
       }
       if (status.state === 'open') socketRestored = true;
@@ -412,6 +422,8 @@ export function createWorkbenchController(options: {
     seekScheduler.cancel();
     historyLoader.cancel();
     history.reset();
+    annotationLoader.cancel();
+    annotations.reset();
     queue = Promise.resolve();
     requests = new AbortController();
     controlIntent = settledIntent = 0; socketRestored = false; mediaStalled = mediaTransportStalled = fatal = false; presentedLayout = null;
@@ -512,6 +524,8 @@ export function createWorkbenchController(options: {
     seekScheduler.dispose();
     historyLoader.cancel();
     history.reset();
+    annotationLoader.cancel();
+    annotations.reset();
     media.disconnect();
     socket.disconnect();
     sync.dispose();

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   parseServerMessage,
   validateFrameSnapshot,
+  validateRest,
 } from "../../src/api/validation";
 import { example } from "./fixtures";
 
@@ -139,4 +140,14 @@ describe("generated contract runtime validation", () => {
     alert.data.details = { nested: [Infinity] };
     expect(() => parseServerMessage(alert)).toThrow();
   });
+});
+
+it('rejects reference overlays, duplicate ids and reversed annotation intervals', () => {
+  const data = { log_id: 'l', source_id: 'src', source_sha256: null, alignment: 'source_frames', provisional: true,
+    assumptions: [], reference: {}, events: [], segments: [{ id: 'a', start_s: 0, end_s: 1, start_frame: 0, end_frame: 2, label: 'stage', review_status: 'pending_review', boundary_status: 'unknown', training_approved: false, details: {} }] };
+  expect(validateRest('LogAnnotations', data).segments[0]?.training_approved).toBe(false);
+  expect(() => validateRest('LogAnnotations', { ...data, alignment: 'reference_only' })).toThrow();
+  expect(() => validateRest('LogAnnotations', { ...data, segments: [...data.segments, ...data.segments] })).toThrow();
+  expect(() => validateRest('LogAnnotations', { ...data, segments: [{ ...data.segments[0], end_s: 0 }] })).toThrow();
+  expect(() => validateRest('LogAnnotations', { ...data, segments: [{ ...data.segments[0], end_frame: 0 }] })).toThrow();
 });

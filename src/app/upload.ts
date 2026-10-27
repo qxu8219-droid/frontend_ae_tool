@@ -77,3 +77,8 @@ export function formatUploadSize(bytes: number): string {
   if (bytes >= 1024) return `${Number((bytes / 1024).toFixed(2))} KiB`;
   return `${bytes} B`;
 }
+
+/** The extension selects the server's portable-bundle adapter when parser is omitted. */
+export function isB041Upload(name: string): boolean {
+  return name.toLowerCase().endsWith(".b041");
+}

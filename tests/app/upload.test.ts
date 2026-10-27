@@ -71,3 +71,11 @@ describe("file size validation", () => {
     },
   );
 });
+
+it('recognizes portable B041 bundles while keeping backend parser selection automatic', async () => {
+  const { isB041Upload } = await import('../../src/app/upload');
+  expect(isB041Upload('episode.B041')).toBe(true);
+  expect(isB041Upload('episode.b041.json')).toBe(false);
+  expect(parseUploadOptions('', '')).toEqual({ ok: true, options: {} });
+  expect(validateUploadFile({ size: 16 }, 1024)).toBeNull();
+});

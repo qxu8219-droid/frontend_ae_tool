@@ -286,6 +286,12 @@ export function createApiClient(
         );
       return value;
     },
+    async annotations(sid: string, lid: string, options?: RequestOptions): Promise<Schemas["LogAnnotations"]> {
+      const value = await request(`${sessionPath(sid)}/logs/${id(lid)}/annotations`, "LogAnnotations", options);
+      if (value.log_id !== lid)
+        throw new ApiError(200, "INVALID_RESPONSE", "Annotations belong to another log");
+      return value;
+    },
     async curve(
       sid: string,
       lid: string,

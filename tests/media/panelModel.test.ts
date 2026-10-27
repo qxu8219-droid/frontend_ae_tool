@@ -196,3 +196,22 @@ describe("quality provenance", () => {
     ).toEqual(["推算", "插值", "前填", "换算"]);
   });
 });
+
+it('marks provisional joint derivations and each chassis axis from the presented quality', async () => {
+  const { chassisPanelAxes } = await import('../../src/media/panelModel');
+  const data = frame();
+  data.chassis = { x: 1.25, y: -2, yaw: .5, frame: 'world', quality: [
+    { origin: 'derived', valid: true, processing: ['derived'], method: 'b041.provisional.se2' },
+    { origin: 'derived', valid: false, processing: ['derived'], method: 'b041.provisional.se2' },
+    { origin: 'measured', valid: true, processing: ['original'] },
+  ] };
+  expect(chassisPanelAxes(data).map(axis => [axis.valueText, axis.qualityText])).toEqual([
+    ['1.250', '推算·暂定'], ['—', '推算·暂定·无效'], ['0.500', '实测'],
+  ]);
+  expect(qualityPresentation({ origin: 'derived', valid: true, method: 'b041.provisional.gripper' }).text).toBe('推算·暂定');
+  data.chassis.quality = null;
+  expect(chassisPanelAxes(data)[0]?.qualityText).toBe('来源未知');
+  expect(chassisPanelAxes(data)[0]?.valueText).toBe('1.250');
+  data.chassis = null;
+  expect(chassisPanelAxes(data)[0]?.valueText).toBe('—');
+});

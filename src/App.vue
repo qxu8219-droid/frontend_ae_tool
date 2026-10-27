@@ -10,6 +10,7 @@ import { SCENARIOS, type ScenarioId } from "./domain/types";
 import UploadPanel from "./components/UploadPanel.vue";
 import TimelineControl from "./components/TimelineControl.vue";
 import HistoryControls from "./components/HistoryControls.vue";
+import AnnotationPanel from "./components/AnnotationPanel.vue";
 import { useHistoryStore } from "./stores/history";
 import { createHistoryChart } from "./media/historyChart";
 const history = useHistoryStore();
@@ -479,6 +480,7 @@ onBeforeUnmount(() => {
             >历史曲线绘制失败：{{ chartError }}</n-alert
           >
           <HistoryControls :disabled="!canControl" @seek="controller.seek" />
+          <AnnotationPanel :disabled="!canControl" @seek="controller.seek" />
           <div class="bottom-row">
             <div class="card session-summary">
               <h3>当前会话</h3>

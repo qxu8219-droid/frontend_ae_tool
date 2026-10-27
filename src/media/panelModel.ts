@@ -68,6 +68,7 @@ export function qualityPresentation(
     const name = transforms[processing];
     if (name && !labels.includes(name)) labels.push(name);
   }
+  if (quality.method?.startsWith("b041.provisional.")) labels.push("暂定");
   if (!quality.valid && quality.origin !== "missing") labels.push("无效");
   return {
     available: quality.valid && quality.origin !== "missing",
@@ -142,4 +143,17 @@ export function jointPanelGroups(
       };
     }),
   }));
+}
+
+/** Each axis reads provenance from the same captured pose; legacy poses stay unknown. */
+export function chassisPanelAxes(snapshot: FrameSnapshot) {
+  const pose = snapshot.chassis;
+  return (["x", "y", "yaw"] as const).map((axis, index) => {
+    const source = pose?.quality?.[index];
+    const quality = source ? qualityPresentation(source) : null;
+    const available = !!pose && (quality?.available ?? true) && Number.isFinite(pose[axis]);
+    return { axis, unit: axis === "yaw" ? "rad" : "m", available,
+      valueText: available ? pose![axis].toFixed(3) : "—",
+      qualityText: quality?.text ?? (pose ? "来源未知" : "不可用") };
+  });
 }

@@ -570,6 +570,11 @@ export class MockRuntime {
     const log = this.log(this.requireSession(sid), lid);
     return { log_id: lid, channels: copy(log.result.channels) };
   }
+  getLogAnnotations(sid: string, lid: string): Schema["LogAnnotations"] {
+    const log = this.log(this.requireSession(sid), lid);
+    return { log_id: lid, source_id: null, source_sha256: log.result.raw_file_sha256,
+      alignment: "none", provisional: false, assumptions: [], reference: {}, segments: [], events: [] };
+  }
   getCurve(
     sid: string,
     lid: string,

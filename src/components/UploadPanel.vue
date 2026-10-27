@@ -4,6 +4,7 @@ import { NButton } from "naive-ui";
 import type { Schema, UploadResult } from "../domain/types";
 import {
   formatUploadSize,
+  isB041Upload,
   parseUploadOptions,
   validateUploadFile,
   type UploadFormOptions,
@@ -29,6 +30,7 @@ const parser = ref("");
 const mapping = ref("");
 const fileError = ref<string | null>(null);
 const fileName = ref("");
+const portableBundle = ref(false);
 const options = computed(() => parseUploadOptions(parser.value, mapping.value));
 const active = computed(
   () => !!props.uploaded && props.uploaded.log_id === props.activeLogId,
@@ -53,6 +55,7 @@ function selectFile(event: Event) {
   if (!file || !props.ready || props.busy) return;
   fileError.value = validateUploadFile(file, props.maxBytes);
   if (fileError.value || !options.value.ok) return;
+  portableBundle.value = isB041Upload(file.name);
   fileName.value = `${file.name} · ${formatUploadSize(file.size)}`;
   emit("upload", file, options.value.options);
 }
@@ -73,6 +76,10 @@ function selectFile(event: Event) {
           ? "Mock 仅记录文件名、摘要和映射；生成合成轨迹，不解析或持久化文件内容。"
           : "上传日志并检查解析结果，再激活用于回放。"
       }}
+    </p>
+    <p class="upload-hint">支持 CSV、JSON、B041 便携包（.b041）；B041 后缀由服务端自动选择解析器。</p>
+    <p v-if="portableBundle || uploaded?.parser === 'b041_bundle_v1'" class="upload-hint" data-testid="b041-provisional-note">
+      B041 夹爪位移和底盘轨迹采用映射快照中的暂定假设。激活后可查看逐帧推算来源、具体假设和待审标注。
     </p>
     <details class="mapping-editor">
       <summary>解析器与映射配置</summary>
@@ -135,6 +142,7 @@ function selectFile(event: Event) {
       data-testid="file-input"
       class="visually-hidden"
       type="file"
+      accept=".csv,.json,.b041"
       aria-label="上传日志文件"
       :disabled="!ready || busy || !options.ok"
       @change="selectFile"

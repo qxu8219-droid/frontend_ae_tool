@@ -115,7 +115,7 @@ function nextMessage(socket: WebSocket, type: WsServerMessage["type"]) {
 }
 
 describe("REST mock transport", () => {
-  it("exposes all 18 routes with contract statuses and shared playback state", async () => {
+  it("exposes the original 18 routes with contract statuses and shared playback state", async () => {
     const session = await readySession();
     const status = await request(`/sessions/${session.session_id}`).then(
       (response) => response.json(),
@@ -458,3 +458,13 @@ describe.skipIf(typeof globalThis.WebSocket === "undefined")(
     });
   },
 );
+
+it('returns explicit empty annotations for mock archives and rejects unknown log ids', async () => {
+  const session = await readySession();
+  const uploaded = await request(`/sessions/${session.session_id}/logs`, { method: 'POST', body: uploadForm() }).then(r => r.json());
+  const annotations = await request(`/sessions/${session.session_id}/logs/${uploaded.log_id}/annotations`);
+  expect(annotations.status).toBe(200);
+  expect(await annotations.json()).toMatchObject({ log_id: uploaded.log_id, source_sha256: uploaded.raw_file_sha256,
+    alignment: 'none', provisional: false, assumptions: [], segments: [], events: [], reference: {} });
+  await expectError(await request(`/sessions/${session.session_id}/logs/missing/annotations`), 404);
+});

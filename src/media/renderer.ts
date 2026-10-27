@@ -1,6 +1,6 @@
 import type { FrameSnapshot, JointMetadata } from "../domain/types";
 import { validateFrameSnapshot } from "../api/validation";
-import { jointPanelGroups, positionLimitEligible } from "./panelModel";
+import { chassisPanelAxes, jointPanelGroups, positionLimitEligible } from "./panelModel";
 import {
   decodeStamp,
   MARKER_PIXELS,
@@ -712,17 +712,13 @@ export function drawPresentation(
     15,
     "right",
   );
-  const pose = data.chassis;
-  label(
-    ctx,
-    pose
-      ? `CHASSIS  x ${pose.x.toFixed(3)} m   y ${pose.y.toFixed(3)} m   yaw ${pose.yaw.toFixed(3)} rad`
-      : "CHASSIS  unavailable",
-    20,
-    637,
-    pose ? COLORS.text : COLORS.missing,
-    15,
-  );
+  chassisPanelAxes(data).forEach((axis, index) => {
+    ctx.font = `13px ${MONO}`;
+    ctx.fillStyle = axis.available ? COLORS.text : COLORS.missing;
+    ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+    ctx.fillText(`${index === 0 ? "CHASSIS " : ""}${axis.axis} ${axis.valueText} ${axis.unit} · ${axis.qualityText}`,
+      20 + index * 260, 637, 250);
+  });
   label(
     ctx,
     `Wheel source rad: ${[1, 3, 5].map((index) => data.source_joints[index].toFixed(3)).join(" / ")} (unwrapped)`,

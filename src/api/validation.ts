@@ -241,6 +241,16 @@ function curve(value: Schemas["CurveResponse"]): void {
   }
 }
 
+function annotations(value: Schemas["LogAnnotations"]): void {
+  requireContract(value.alignment === "source_frames" || value.segments.length === 0,
+    "Only source_frames alignment permits timeline segments");
+  for (const items of [value.segments, value.events])
+    requireContract(new Set(items.map(item => item.id)).size === items.length, "Annotation ids must be unique");
+  for (const segment of value.segments)
+    requireContract(segment.start_s < segment.end_s && segment.start_frame < segment.end_frame,
+      "Annotation intervals must be nonempty and half-open");
+}
+
 export function validateRest<N extends keyof Schemas>(
   name: N,
   value: unknown,
@@ -296,6 +306,9 @@ export function validateRest<N extends keyof Schemas>(
     case "LogChannels":
       (value as Schemas["LogChannels"]).channels.forEach(channel);
       break;
+    case "LogAnnotations":
+      annotations(value as Schemas["LogAnnotations"]);
+      break;
     case "CurveResponse":
       curve(value as Schemas["CurveResponse"]);
       break;
@@ -322,6 +335,7 @@ export function validateFrameSnapshot(value: unknown): FrameSnapshot {
     "Frame progress must equal log time divided by duration",
   );
   frame.quality.forEach(quality);
+  frame.chassis?.quality?.forEach(quality);
   return frame;
 }
 

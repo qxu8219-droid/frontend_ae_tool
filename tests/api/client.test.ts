@@ -296,3 +296,14 @@ describe("API boundary", () => {
     }
   });
 });
+
+it('loads annotations with escaped archive identity and rejects a mismatched log', async () => {
+  const payload = { log_id: 'l/1', source_id: null, source_sha256: null, alignment: 'none', provisional: false, assumptions: [], reference: {}, segments: [], events: [] };
+  const client = createApiClient('/api/v1', async (url) => {
+    expect(String(url)).toBe('/api/v1/sessions/s%2F1/logs/l%2F1/annotations');
+    return new Response(JSON.stringify(payload));
+  });
+  expect(await client.annotations('s/1', 'l/1')).toMatchObject({ alignment: 'none', log_id: 'l/1' });
+  payload.log_id = 'wrong';
+  await expect(client.annotations('s/1', 'l/1')).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
+});

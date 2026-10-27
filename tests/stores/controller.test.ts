@@ -469,3 +469,22 @@ it("a failed deletion retains a cleanup handle so Close can retry instead of str
   expect(useSessionStore().sid).toBe("new");
   c.dispose();
 });
+
+it('loads annotations at the accepted log barrier but derives current stage from presented frames', async () => {
+  const { useAnnotationStore } = await import('../../src/stores/annotations');
+  const api = { load: async () => ack(5), channels: async () => ({ log_id: 'l', channels: [] }),
+    annotations: async (_sid: string, lid: string) => ({ ...example('service/log_annotations'), log_id: lid }),
+  } as unknown as ApiClient;
+  const c = createWorkbenchController({ api, source, socketFactory, getCanvas: () => null });
+  useSessionStore().sid = 's';
+  await c.control('load', { log_id: 'l' });
+  await Promise.resolve();
+  const store = useAnnotationStore();
+  expect(store.data?.log_id).toBe('l');
+  expect(store.currentSegments).toEqual([]);
+  const telemetry = useTelemetryStore(); telemetry.context('s', 0);
+  const frame = example('protocol/FrameSnapshot');
+  telemetry.accept({ ...frame, session_id: 's', log_id: 'l', log_time_s: .5 }, 0);
+  expect(store.currentSegments[0]?.review_status).toBe('pending_review');
+  c.dispose(); expect(store.data).toBeNull();
+});

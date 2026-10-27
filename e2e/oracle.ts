@@ -4,7 +4,7 @@ import type { BrowserEvidence } from "./fixtures";
 
 // Deliberately independent of application stamp, renderer, runtime, and store modules.
 export interface Snapshot {
-  chassis?: { x: number; y: number; yaw: number } | null;
+  chassis?: { x: number; y: number; yaw: number; quality?: Array<{ origin: string; valid: boolean; method?: string | null; processing?: string[] }> | null } | null;
   capture_id: number;
   captured_wall_s: number;
   render_seq: number;
@@ -181,9 +181,24 @@ export async function readPair(page: Page, expectedLayout?: { sourceWidth: numbe
       20,
       612,
     );
-    expected.fillStyle = snapshot.chassis ? '#e5edf6' : '#738092';
     const pose = snapshot.chassis;
-    expected.fillText(pose ? `CHASSIS  x ${pose.x.toFixed(3)} m   y ${pose.y.toFixed(3)} m   yaw ${pose.yaw.toFixed(3)} rad` : 'CHASSIS  unavailable', 20, 637);
+    // Independent provenance oracle: use captured per-axis quality, including legacy unknowns.
+    const origins: Record<string, string> = { measured: '实测', commanded: '指令', derived: '推算', missing: '缺失' };
+    const transforms: Record<string, string> = { original: '', unit_converted: '换算', interpolated: '插值', forward_filled: '前填', defaulted: '默认', derived: '推算' };
+    (['x', 'y', 'yaw'] as const).forEach((axis, index) => {
+      const quality = pose?.quality?.[index];
+      const available = !!pose && (!quality || quality.valid && quality.origin !== 'missing');
+      const labels = quality ? [origins[quality.origin]] : [pose ? '来源未知' : '不可用'];
+      for (const operation of quality?.processing ?? []) {
+        const name = transforms[operation]; if (name && !labels.includes(name)) labels.push(name);
+      }
+      if (quality?.method?.startsWith('b041.provisional.')) labels.push('暂定');
+      if (quality && !quality.valid && quality.origin !== 'missing') labels.push('无效');
+      expected.font = '13px ui-monospace, SFMono-Regular, Menlo, monospace';
+      expected.fillStyle = available ? '#e5edf6' : '#738092';
+      expected.fillText(`${index === 0 ? 'CHASSIS ' : ''}${axis} ${available ? pose![axis].toFixed(3) : '—'} ${axis === 'yaw' ? 'rad' : 'm'} · ${labels.join('·')}`,
+        20 + index * 260, 637, 250);
+    });
     expected.font = "14px ui-monospace, SFMono-Regular, Menlo, monospace";
     expected.fillStyle = "#8297af";
     expected.fillText(
@@ -236,7 +251,7 @@ export async function readPair(page: Page, expectedLayout?: { sourceWidth: numbe
       canvas: { width: canvas.width, height: canvas.height },
       robotPixelsHash,
       captureAgeMs: Date.now() - snapshot.captured_wall_s * 1000,
-      visibleChassis: mismatches(20, 621, 700, 21),
+      visibleChassis: mismatches(20, 621, 780, 21),
       progressPixels: { filled, empty },
       visibleText: {
         time: mismatches(20, 593, 450, 24),
