@@ -181,7 +181,7 @@ function selectFile(event: Event) {
           <dd>{{ uploaded.stats.sample_count.toLocaleString() }}</dd>
         </div>
         <div>
-          <dt>原始采样率</dt>
+          <dt>记录采样率（中位）</dt>
           <dd>
             {{
               uploaded.stats.nominal_rate_hz === null

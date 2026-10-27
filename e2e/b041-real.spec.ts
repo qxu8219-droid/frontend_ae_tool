@@ -256,6 +256,17 @@ test('real B041 state replay preserves measured joints, provisional mapping, gap
       const inert = page.getByRole('button', { name: /无法对齐 · 不可定位/ });
       expect(await inert.count()).toBeGreaterThan(0); await expect(inert.first()).toBeDisabled();
     }
+    if (onlineAnnotations.events.length > 100) {
+      const navigation = page.getByRole('navigation', { name: '历史事件分页' });
+      const next = navigation.getByRole('button', { name: '下一页' });
+      while (await next.isEnabled()) await next.click();
+      const count = onlineAnnotations.events.length, last = onlineAnnotations.events.at(-1);
+      await expect(navigation).toContainText(`${count} / ${count}`);
+      const history = navigation.locator('..');
+      await expect(history.getByText(last.message, { exact: true }).last()).toBeVisible();
+      expect(await history.locator(':scope > ol > li').count()).toBeLessThanOrEqual(100);
+      report.historyPagination = { total: count, lastEventId: last.id, lastPage: Math.ceil(count / 100) };
+    }
     await page.screenshot({ path: path.join(output, 'runtime-gap.png'), fullPage: true });
     await page.getByTestId('stop').click(); await wait('runtime-stopped', sample => sample.snapshot.log_time_s === 0 && sample.snapshot.state === 'ready');
     await page.getByTestId('close-session').click(); await expect(page.getByTestId('create-session')).toBeEnabled();

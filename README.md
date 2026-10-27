@@ -1,6 +1,6 @@
 # 机器人日志回放前端
 
-T05～T07 已提供可独立运行的 Vue Mock 工作台。包含会话创建、上传检查与映射、完整播放器、28 关节分组与底盘朝向、历史曲线、事件过滤/定位、系统健康与故障场景。T15 已接入实际 IsaacSim 6.2 视频和正式后端业务；Mock 模式保留独立合成示意图。真实视频与数据严格按同帧身份共同呈现，使用方式见 [真实回放说明](docs/real-media-v1.md)。
+T05～T07 已提供可独立运行的 Vue Mock 工作台。包含会话创建、上传检查与映射、完整播放器、28 关节分组与底盘朝向、历史曲线、事件过滤/定位、系统健康与故障场景。T15 接入实际 IsaacSim 6.2 视频和正式后端业务，T16 已增加 B041 便携包上传、暂定映射来源及按源帧对齐的标注展示。真实视频与数据严格按同帧身份共同呈现；Mock 模式保留独立合成示意图。媒体使用见 [真实回放说明](docs/real-media-v1.md)，真机数据使用见 [B041 回放说明](../backend/docs/b041-replay-v1.md)。
 
 ## 启动
 
@@ -35,7 +35,11 @@ Mock 帧依据冻结快照绘制，经 ImageBitmap 实际像素 ID＋CRC 校验�
 VITE_USE_MOCK=false npm run dev
 ```
 
-默认把 `/api`、`/ws` 代理至本机 8000。请在 `../backend` 用 `ISAACSIM_PYTHON=... bash scripts/run_backend.sh` 启动实际服务；直接启动默认契约应用仍返回 `503 BACKEND_NOT_CONFIGURED`。首次创建后等待 worker 就绪，上传 CSV/JSON 并检查映射，再激活回放。
+默认把 `/api`、`/ws` 代理至本机 8000。请在 `../backend` 用 `ISAACSIM_PYTHON=... bash scripts/run_backend.sh` 启动实际服务；直接启动默认契约应用仍返回 `503 BACKEND_NOT_CONFIGURED`。首次创建后等待 worker 就绪，上传 CSV/JSON/`.b041` 并检查映射，再激活回放。
+
+B041 可选择 `../backend/data/real_logs/derived/<source_id>/b041_ee2_body_velocity_v1/recording.b041`，在“解析器与映射配置”的“映射 JSON”粘贴同目录 `mapping.json` 内容；解析器可留空。检查导入统计、诊断及映射快照后再点“激活此日志”。完整保存的映射快照可原样重导入；变更夹爪或底盘假设只使用 `b041` 专用参数，通用字段覆盖会被后端以 400 拒绝。
+
+“标注与来源”显示当前已呈现时刻对应的源帧阶段、暂定假设和待审状态。`pending_review`、`training_approved=false` 保持源状态；Rim 的 `reference_only` 仅作历史来源参考，不映射到当前运行或用于定位。四个 finger 和离线积分底盘明确标为推算，在线无可靠位姿时底盘不可用，不能依据 target 移动。历史事件与当前帧状态分开呈现。
 
 真实模式前端上传上限默认 64MiB，可通过 `VITE_MAX_UPLOAD_BYTES` 设置；最终仍以服务端校验为准。Mock 固定为 1MiB。
 
@@ -68,4 +72,4 @@ npm run check --prefix tools/contracts
 
 `public/mockServiceWorker.js` 由固定版本 MSW 生成并入库；升级 MSW 后通过 `npx msw init public --save` 更新。不要手改生成契约、Schema 或关节元数据 fixture。
 
-实际 SDK 工作台使用合成日志验证，见 [T15 记录](docs/validation/t15-status.md)。下一项 T16 完成真实日志专用适配与验收；已下载样本保持只读，尚未确认的夹爪标定与底盘语义继续等待团队确认。
+T15 的合成日志验证见 [T15 记录](docs/validation/t15-status.md)。T16 已完成两份离线、live 与 Rim 的本地核对和真实 SDK/UI 回放；用户授权的夹爪/底盘假设仍为暂定，已下载原件保持只读，精确资料到达后以新 profile 重新生成。完整 MCAP、实物精确标定与 T17 长时间稳定性验证尚未完成。
