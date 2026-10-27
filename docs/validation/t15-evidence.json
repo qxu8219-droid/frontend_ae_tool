@@ -1,0 +1,31 @@
+{
+  "scope": "Real configured UI / HTTP / WS / WHEP / SDK6.2; synthetic commands only",
+  "passed": true,
+  "healthy": {
+    "presentedFps": 18.83934746449929,
+    "maxCaptureAgeMs": 178.9912109375,
+    "sampleCount": 29
+  },
+  "workerErrorVisibleMs": 865,
+  "delayedPairDeliveryMs": 700,
+  "historyCursorPixelsVerified": true,
+  "staticHistoryDoesNotImplyCurrentAlert": true,
+  "ownedResourcesReleased": true,
+  "dragTargets": [
+    2,
+    7,
+    4
+  ],
+  "sampleCount": 59,
+  "uniquePresentedIdentities": 58,
+  "delayedSamplesAgeMs": [
+    836.336181640625,
+    787.50439453125,
+    809.968505859375,
+    826.93701171875,
+    796.310302734375
+  ],
+  "reloadedLogTimeS": 0,
+  "rawEvidence": "backend/outputs/t15/real-5/",
+  "validationDate": "2026-10-27"
+}

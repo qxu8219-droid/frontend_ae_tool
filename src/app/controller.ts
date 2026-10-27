@@ -80,6 +80,7 @@ export function createWorkbenchController(options: {
     queue: Promise<unknown> = Promise.resolve(),
     disposed = false;
   let controlIntent = 0, settledIntent = 0, socketRestored = false, mediaStalled = false, fatal = false;
+  let mediaTransportStalled = false;
   let presentedLayout: { sourceWidth: number; sourceHeight: number; markerPixels: ReadonlyArray<readonly [number, number]> } | null = null;
   const pendingAlerts: Array<
     Extract<WsServerMessage, { type: "alert" }>["data"]
@@ -117,7 +118,7 @@ export function createWorkbenchController(options: {
   });
   function updateHold() {
     session.waitingForControl = controlIntent > settledIntent;
-    sync.setSuspended(session.waitingForControl || !socketRestored || mediaStalled || fatal);
+    sync.setSuspended(session.waitingForControl || !socketRestored || mediaStalled || mediaTransportStalled || fatal);
   }
   function barrier(value: PlaybackSnapshot) {
     sync.setBarrier(
@@ -195,12 +196,15 @@ export function createWorkbenchController(options: {
             }
             if (media.capabilities.kind === 'whep') {
               if (!frame.snapshot) { frame.close(); return; }
-              sync.addSnapshot(frame.snapshot);
             }
             sync.addFrame(frame);
           },
-          (status) => {
-            if (ticket === lifecycle && connectionGeneration === session.socket.generation && !disposed) ui.mediaStatus = status;
+          (status, state) => {
+            if (ticket !== lifecycle || connectionGeneration !== session.socket.generation || disposed) return;
+            ui.mediaStatus = status;
+            if (media.capabilities.kind === 'whep' && state) {
+              mediaTransportStalled = state === 'waiting'; updateHold();
+            }
           },
           message.data.video,
         );
@@ -410,7 +414,7 @@ export function createWorkbenchController(options: {
     history.reset();
     queue = Promise.resolve();
     requests = new AbortController();
-    controlIntent = settledIntent = 0; socketRestored = false; mediaStalled = fatal = false; presentedLayout = null;
+    controlIntent = settledIntent = 0; socketRestored = false; mediaStalled = mediaTransportStalled = fatal = false; presentedLayout = null;
     media.disconnect();
     socket.disconnect();
     sync.dispose();

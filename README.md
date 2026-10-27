@@ -1,6 +1,6 @@
 # 机器人日志回放前端
 
-T05～T07 已提供可独立运行的 Vue Mock 工作台。包含会话创建、上传检查与映射、完整播放器、28 关节分组与底盘朝向、历史曲线、事件过滤/定位、系统健康与故障场景。当前机器人是程序绘制的合成示意图；实际 IsaacSim 视频、真实日志解析和正式后端业务尚未接入。
+T05～T07 已提供可独立运行的 Vue Mock 工作台。包含会话创建、上传检查与映射、完整播放器、28 关节分组与底盘朝向、历史曲线、事件过滤/定位、系统健康与故障场景。T15 已接入实际 IsaacSim 6.2 视频和正式后端业务；Mock 模式保留独立合成示意图。真实视频与数据严格按同帧身份共同呈现，使用方式见 [真实回放说明](docs/real-media-v1.md)。
 
 ## 启动
 
@@ -27,7 +27,7 @@ Mock 帧依据冻结快照绘制，经 ImageBitmap 实际像素 ID＋CRC 校验�
 
 事件有“预扫描限位历史”和“本轮播放已触发”两种视图，均支持倒序、级别筛选和点击定位。现有契约没有独立通用事件历史端点，预扫描视图明确来源于 `limit_intervals`，不冒充全部日志事件；本轮 WS 告警按实际呈现时刻放行。CPU/内存/GPU/worker 健康使用系统时间独立更新。
 
-`useVideoSource` 负责显式选择和释放源，连接代次、控制屏障与缓存上限隔离过期内容。正式 WHEP 适配在 T15 接入；真实模式当前不产生替代的 Mock 图像。
+`useVideoSource` 负责显式选择和释放源，连接代次、控制屏障与缓存上限隔离过期内容。正式 WHEP/WebCodecs 适配已接入；真实模式不产生替代的 Mock 图像。
 
 ## 真实模式
 
@@ -35,7 +35,7 @@ Mock 帧依据冻结快照绘制，经 ImageBitmap 实际像素 ID＋CRC 校验�
 VITE_USE_MOCK=false npm run dev
 ```
 
-默认把 `/api`、`/ws` 代理至本机 8000。后端契约应用可在 `../backend` 按其 README 启动；当前合法业务调用返回 `503 BACKEND_NOT_CONFIGURED`，页面会显示真实错误。
+默认把 `/api`、`/ws` 代理至本机 8000。请在 `../backend` 用 `ISAACSIM_PYTHON=... bash scripts/run_backend.sh` 启动实际服务；直接启动默认契约应用仍返回 `503 BACKEND_NOT_CONFIGURED`。首次创建后等待 worker 就绪，上传 CSV/JSON 并检查映射，再激活回放。
 
 真实模式前端上传上限默认 64MiB，可通过 `VITE_MAX_UPLOAD_BYTES` 设置；最终仍以服务端校验为准。Mock 固定为 1MiB。
 
@@ -68,4 +68,4 @@ npm run check --prefix tools/contracts
 
 `public/mockServiceWorker.js` 由固定版本 MSW 生成并入库；升级 MSW 后通过 `npx msw init public --save` 更新。不要手改生成契约、Schema 或关节元数据 fixture。
 
-下一步为 T08 日志导入、映射与参考适配器，以及后端时间轴与 worker 业务。真实日志字段需要等待实际样例分析；目前不宣称真机数据解析或正式 IsaacSim 视频接入已完成。
+实际 SDK 工作台使用合成日志验证，见 [T15 记录](docs/validation/t15-status.md)。下一项 T16 完成真实日志专用适配与验收；已下载样本保持只读，尚未确认的夹爪标定与底盘语义继续等待团队确认。

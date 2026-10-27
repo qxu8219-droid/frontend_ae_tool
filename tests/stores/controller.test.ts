@@ -13,6 +13,23 @@ import { example } from "../api/fixtures";
 beforeEach(() => setActivePinia(createPinia()));
 afterEach(() => vi.unstubAllGlobals());
 
+it('clears queued real images before a retired media source closes their underlying frames', () => {
+  vi.stubGlobal('requestAnimationFrame', () => 1); vi.stubGlobal('cancelAnimationFrame', () => {});
+  let callbacks!: SessionSocketOptions, onFrame!: (frame: any) => void, onStatus!: (message: string, state?: 'waiting' | 'ready') => void;
+  const realSource = { ...source, capabilities: { ...source.capabilities, kind: 'whep' as const },
+    connect: (_sid: string, frame: typeof onFrame, status?: typeof onStatus) => { onFrame = frame; onStatus = status!; } };
+  const c = createWorkbenchController({ getCanvas: () => null, source: realSource,
+    socketFactory: options => { callbacks = options; return socketFactory(); } });
+  const hello = example('service/ws_connection_snapshot'); useSessionStore().sid = hello.session_id;
+  callbacks.onStatus({ state: 'connecting', generation: 1 }); callbacks.onMessage(hello, 1);
+  const snapshot = example('protocol/FrameSnapshot'), close = vi.fn();
+  onFrame({ sessionId: snapshot.session_id, captureId: snapshot.capture_id, snapshot, image: {}, width: 1280, height: 720, close });
+  expect(c.diagnostics.sync().frames).toBe(1);
+  onStatus('media transport failed', 'waiting');
+  expect(c.diagnostics.sync().frames).toBe(0); expect(close).toHaveBeenCalledOnce();
+  expect(c.diagnostics.sync().suspended).toBe(true); c.dispose();
+});
+
 it('ignores invalid or sessionless timeline intents without freezing future presentation', () => {
   const controller = createWorkbenchController({ getCanvas: () => null, source, socketFactory });
   controller.seek(1); expect(useSessionStore().waitingForControl).toBe(false);

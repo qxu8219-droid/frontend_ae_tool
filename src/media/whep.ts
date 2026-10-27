@@ -1,15 +1,16 @@
 import type { VideoInfo } from '../domain/types';
-import type { DecodedFrame, VideoSource } from './types';
+import type { DecodedFrame, VideoSource, MediaState } from './types';
 import type { DecodedPair } from './decoder';
 
 type Receiver = RTCRtpReceiver & { createEncodedStreams?(): { readable: ReadableStream; writable: WritableStream } };
 interface Desired {
   key: string; sid: string; video: VideoInfo;
-  onFrame: (frame: DecodedFrame) => void; onStatus?: (status: string) => void;
+  onFrame: (frame: DecodedFrame) => void; onStatus?: (status: string, state?: MediaState) => void;
 }
 interface Connection {
   peer: RTCPeerConnection | null; worker: Worker | null; abort: AbortController;
   resource: string | null; closed: boolean; sink: HTMLVideoElement | null;
+  firstFrame?: boolean;
 }
 function iceReady(peer: RTCPeerConnection, signal: AbortSignal) {
   if (signal.aborted) return Promise.reject(new Error('Media connection retired'));
@@ -68,8 +69,10 @@ export function createWhepVideoSource(dependencies: {
     const current = () => active === connection && desired === config && !connection.closed;
     const fail = (error: unknown) => {
       if (!current()) return;
-      active = null; retire(connection);
-      config.onStatus?.(`视频连接中断，画面和数据共同保持：${error instanceof Error ? error.message : String(error)}`);
+      active = null;
+      // Let the consumer clear scheduled presentations before closing its frames.
+      config.onStatus?.(`视频连接中断，画面和数据共同保持：${error instanceof Error ? error.message : String(error)}`, 'waiting');
+      retire(connection);
       if (desired === config && attempts < 5) {
         const delay = Math.min(8000, 500 * 2 ** attempts++);
         retry = setTimeout(() => { retry = null; void start(config); }, delay);
@@ -108,7 +111,13 @@ export function createWhepVideoSource(dependencies: {
           };
           owned.add(managed);
           lastLayout = { sourceWidth: managed.width, sourceHeight: managed.height, markerPixels: pair.markerPixels };
-          try { config.onFrame(managed); } catch (error) { managed.close(); fail(error); }
+          try {
+            if (!connection.firstFrame) {
+              connection.firstFrame = true;
+              config.onStatus?.('真实视频已连接，图像与数据按同帧核验', 'ready');
+            }
+            if (current()) config.onFrame(managed); else managed.close();
+          } catch (error) { managed.close(); fail(error); }
         } else if (message.type === 'stats') {
           stats = { packets: message.packets, dropped: message.dropped, mismatches: message.mismatches,
             pending: message.pending, inFlight: message.inFlight, codec: message.codec };
@@ -133,7 +142,7 @@ export function createWhepVideoSource(dependencies: {
         if (peer.connectionState === 'failed' || peer.connectionState === 'disconnected') fail(new Error(peer.connectionState));
         else if (peer.connectionState === 'connected') config.onStatus?.('真实视频已连接，等待图像与数据核验后共同呈现');
       };
-      config.onStatus?.('正在连接真实 WHEP 视频');
+      config.onStatus?.('正在连接真实 WHEP 视频', 'waiting');
       await peer.setLocalDescription(await peer.createOffer());
       await iceReady(peer, connection.abort.signal);
       if (!current()) return;
@@ -157,10 +166,11 @@ export function createWhepVideoSource(dependencies: {
     capabilities: { kind: 'whep', identity: 'capture32_crc32', controllable: true },
     connect(sid, onFrame, onStatus, video) {
       if (!video?.publishing || !video.whep_url || !video.sei_uuid_hex) {
-        disconnect(); onStatus?.('等待仿真发布视频'); return;
+        onStatus?.('等待仿真发布视频', 'waiting'); disconnect(); return;
       }
       const key = JSON.stringify([sid, video.whep_url, video.sei_uuid_hex, video.ice_servers]);
       if (desired?.key === key) { desired.onFrame = onFrame; desired.onStatus = onStatus; return; }
+      onStatus?.('正在准备真实视频连接，画面和数据共同保持', 'waiting');
       disconnect();
       if (!supported()) { onStatus?.('当前浏览器不支持所需的 WebCodecs / WebRTC 编码变换，无法呈现真实回放'); return; }
       desired = { key, sid, video, onFrame, onStatus }; void start(desired);

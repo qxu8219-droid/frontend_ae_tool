@@ -74,6 +74,16 @@ function setup(capacity = 3) {
   };
 }
 describe("same-frame presentation gate", () => {
+  it('immediately releases an atomic real pair rejected by a newer control barrier', () => {
+    const { sync, shown, flush } = setup(); sync.setBarrier(2, 2, 'l');
+    const late = { ...image(1), snapshot: snapshot(1, 1, 1) };
+    // Keep the close counter getter on the actual source object.
+    let closes = 0; late.close = () => { closes++; };
+    sync.addFrame(late); flush();
+    expect(closes).toBe(1); expect(sync.diagnostics().frames).toBe(0);
+    sync.addFrame({ ...image(2), snapshot: snapshot(2, 2, 2) }); flush();
+    expect(shown.map(frame => frame.capture_id)).toEqual([2]);
+  });
   it('holds queued and late frames until the latest local intent is accepted', () => {
     const { sync, shown, flush } = setup(); const queued = image(1);
     sync.addSnapshot(snapshot(1)); sync.addFrame(queued);

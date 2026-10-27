@@ -4,6 +4,7 @@ import type { BrowserEvidence } from "./fixtures";
 
 // Deliberately independent of application stamp, renderer, runtime, and store modules.
 export interface Snapshot {
+  chassis?: { x: number; y: number; yaw: number } | null;
   capture_id: number;
   captured_wall_s: number;
   render_seq: number;
@@ -67,6 +68,7 @@ export interface PairSample {
   captureAgeMs: number;
   progressPixels: { filled: boolean; empty: boolean };
   visibleText: { time: number; source: number; joints: number[] };
+  visibleChassis: number;
 }
 
 export async function diagnostics(page: Page) {
@@ -84,8 +86,8 @@ export async function diagnostics(page: Page) {
 }
 
 /** Snapshot and actual canvas pixels are read in one synchronous browser evaluation. */
-export async function readPair(page: Page): Promise<PairSample | null> {
-  return page.evaluate(() => {
+export async function readPair(page: Page, expectedLayout?: { sourceWidth: number; sourceHeight: number; markerPixels: number[][] }): Promise<PairSample | null> {
+  return page.evaluate((expectedLayout) => {
     const diagnostic = (
       window as unknown as { __replayDiagnostics?: Diagnostics }
     ).__replayDiagnostics;
@@ -101,8 +103,9 @@ export async function readPair(page: Page): Promise<PairSample | null> {
       diagnostic.layout();
     if (
       markerPixels.length !== 64 ||
-      sourceWidth !== 640 ||
-      sourceHeight !== 360
+      sourceWidth !== (expectedLayout?.sourceWidth ?? 640) ||
+      sourceHeight !== (expectedLayout?.sourceHeight ?? 360) ||
+      expectedLayout && JSON.stringify(markerPixels) !== JSON.stringify(expectedLayout.markerPixels)
     ) {
       throw new Error("Unexpected documented capture32_crc32 layout");
     }
@@ -140,10 +143,10 @@ export async function readPair(page: Page): Promise<PairSample | null> {
     // Exclude the identity strip and textual footer: this samples actual robot
     // geometry, which must move during play and remain stable during pause.
     const robotPixels = context.getImageData(
-      Math.ceil(imageRect.x + (120 * imageRect.width) / sourceWidth),
-      Math.ceil(imageRect.y + (64 * imageRect.height) / sourceHeight),
-      Math.floor((420 * imageRect.width) / sourceWidth),
-      Math.floor((260 * imageRect.height) / sourceHeight),
+      Math.ceil(imageRect.x + .1875 * imageRect.width),
+      Math.ceil(imageRect.y + .2 * imageRect.height),
+      Math.floor(.65625 * imageRect.width),
+      Math.floor(.72 * imageRect.height),
     ).data;
     let robotPixelsHash = 2166136261;
     for (const byte of robotPixels)
@@ -178,6 +181,9 @@ export async function readPair(page: Page): Promise<PairSample | null> {
       20,
       612,
     );
+    expected.fillStyle = snapshot.chassis ? '#e5edf6' : '#738092';
+    const pose = snapshot.chassis;
+    expected.fillText(pose ? `CHASSIS  x ${pose.x.toFixed(3)} m   y ${pose.y.toFixed(3)} m   yaw ${pose.yaw.toFixed(3)} rad` : 'CHASSIS  unavailable', 20, 637);
     expected.font = "14px ui-monospace, SFMono-Regular, Menlo, monospace";
     expected.fillStyle = "#8297af";
     expected.fillText(
@@ -230,6 +236,7 @@ export async function readPair(page: Page): Promise<PairSample | null> {
       canvas: { width: canvas.width, height: canvas.height },
       robotPixelsHash,
       captureAgeMs: Date.now() - snapshot.captured_wall_s * 1000,
+      visibleChassis: mismatches(20, 621, 700, 21),
       progressPixels: { filled, empty },
       visibleText: {
         time: mismatches(20, 593, 450, 24),
@@ -237,7 +244,7 @@ export async function readPair(page: Page): Promise<PairSample | null> {
         joints: jointMismatches,
       },
     };
-  });
+  }, expectedLayout);
 }
 
 export function assertPair(sample: PairSample, sid?: string): void {

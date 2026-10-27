@@ -105,6 +105,14 @@ export class FrameSynchronizer {
     this.queue();
   }
   addFrame(frame: DecodedFrame) {
+    if (frame.snapshot) {
+      if (frame.snapshot.capture_id !== frame.captureId || frame.snapshot.session_id !== frame.sessionId || !this.allowed(frame.snapshot)) {
+        frame.close(); this.dropped++; return;
+      }
+      // A real image already owns its verified snapshot. Admit or reject both
+      // together so stale images cannot occupy every decoder transfer slot.
+      this.addSnapshot(frame.snapshot);
+    }
     if (
       this.suspended ||
       frame.sessionId !== this.sessionId ||

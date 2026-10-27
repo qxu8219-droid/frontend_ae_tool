@@ -178,7 +178,7 @@ function selectFile(event: Event) {
             {{
               uploaded.stats.nominal_rate_hz === null
                 ? "不规则 / 未知"
-                : `${uploaded.stats.nominal_rate_hz} Hz`
+                : `${uploaded.stats.nominal_rate_hz.toFixed(2)} Hz`
             }}
           </dd>
         </div>

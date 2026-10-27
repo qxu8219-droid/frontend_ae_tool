@@ -1,4 +1,5 @@
 import type { FrameSnapshot, VideoInfo } from '../domain/types';
+export type MediaState = 'waiting' | 'ready';
 
 export interface DecodedFrame {
   readonly sessionId: string;
@@ -19,7 +20,7 @@ export interface VideoSource {
   connect(
     sid: string,
     onFrame: (frame: DecodedFrame) => void,
-    onStatus?: (message: string) => void,
+    onStatus?: (message: string, state?: MediaState) => void,
     video?: VideoInfo,
   ): void;
   disconnect(): void;
