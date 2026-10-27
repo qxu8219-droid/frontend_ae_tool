@@ -88,3 +88,66 @@ it('does not revive cleared state or accept another log identity', async () => {
   expect(useAnnotationStore().data).toBeNull();
   expect(useAnnotationStore().error).toContain('日志');
 });
+
+function longAnnotations(logId = 'l'): Schema['LogAnnotations'] {
+  const value = annotations(logId);
+  value.events = Array.from({ length: 256 }, (_, index) => ({ id: `event-${index + 1}`, time_s: null,
+    kind: 'diagnostic', message: `Recorded event ${index + 1}`, details: {} }));
+  value.segments = Array.from({ length: 256 }, (_, index) => ({ ...value.segments[0]!,
+    id: `stage-${index + 1}`, label: `Stage ${index + 1}`, start_s: index, end_s: index + 1,
+    start_frame: index, end_frame: index + 1 }));
+  return value;
+}
+
+it('pages the complete event and stage histories through the last record without narrowing current-stage matching', async () => {
+  const store = useAnnotationStore();
+  await createAnnotationLoader({ annotations: async () => longAnnotations() }).load('s', 'l');
+  present(255.5);
+  expect(store.eventHistory.items).toHaveLength(100);
+  expect(store.eventHistory.items[0]?.id).toBe('event-1');
+  expect(store.eventHistory.items[99]?.id).toBe('event-100');
+  expect(store.eventHistory.pageCount).toBe(3);
+  expect(store.segmentHistory.items[0]?.id).toBe('stage-1');
+  expect(store.currentSegments[0]?.id).toBe('stage-256');
+  store.setEventPage(3); store.setSegmentPage(3);
+  expect(store.eventHistory.items).toHaveLength(56);
+  expect(store.eventHistory.items[0]?.id).toBe('event-201');
+  expect(store.eventHistory.items[55]?.id).toBe('event-256');
+  expect(store.segmentHistory.items[55]?.id).toBe('stage-256');
+  expect(store.currentSegments[0]?.id).toBe('stage-256');
+  expect(store.data?.events).toHaveLength(256);
+});
+
+it('bounds invalid page requests and shrinks pages when the presented source has fewer entries', async () => {
+  const store = useAnnotationStore();
+  await createAnnotationLoader({ annotations: async () => longAnnotations() }).load('s', 'l'); present(0);
+  store.setEventPage(999); expect(store.eventHistory.page).toBe(3);
+  store.setEventPage(-5); expect(store.eventHistory.page).toBe(1);
+  store.setEventPage(2.9); expect(store.eventHistory.page).toBe(2);
+  store.setEventPage(Number.NaN); expect(store.eventHistory.page).toBe(1);
+  store.setSegmentPage(Number.POSITIVE_INFINITY); expect(store.segmentHistory.page).toBe(1);
+  store.setSegmentPage(999); expect(store.segmentHistory.page).toBe(3);
+  store.data = annotations();
+  expect(store.segmentHistory.page).toBe(1);
+  expect(store.segmentHistory.items).toHaveLength(2);
+  expect(store.eventHistory).toMatchObject({ page: 1, pageCount: 1, items: [], start: 0, end: 0 });
+});
+
+it('resets both history pages for another session or log and keeps same-source reconnect pagination', async () => {
+  const store = useAnnotationStore();
+  const loader = createAnnotationLoader({ annotations: async (_s, lid) => longAnnotations(lid) });
+  await loader.load('s', 'l'); present(0);
+  store.setEventPage(3); store.setSegmentPage(2);
+  await loader.load('s', 'l');
+  expect(store.eventHistory.page).toBe(3); expect(store.segmentHistory.page).toBe(2);
+  await loader.load('s', 'new'); present(0, 'new');
+  expect(store.eventHistory.page).toBe(1); expect(store.segmentHistory.page).toBe(1);
+  store.setEventPage(3); store.setSegmentPage(3);
+  store.setContext('replacement-session', 'new');
+  store.data = longAnnotations('new');
+  const t = useTelemetryStore(); t.context('replacement-session', 1);
+  t.accept({ ...example<FrameSnapshot>('protocol/FrameSnapshot'), session_id: 'replacement-session', log_id: 'new' }, 1);
+  expect(store.eventHistory.page).toBe(1); expect(store.segmentHistory.page).toBe(1);
+  store.setEventPage(3); store.reset();
+  expect(store.eventHistory).toMatchObject({ page: 1, items: [] });
+});

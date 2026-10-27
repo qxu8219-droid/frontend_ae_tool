@@ -49,24 +49,32 @@ function seek(time: number | null) {
         </article>
         <details v-if="data.segments.length" class="annotation-history">
           <summary>全部历史阶段 · {{ data.segments.length }}（半开区间）</summary>
-          <ol><li v-for="segment in data.segments.slice(0, 100)" :key="segment.id">
+          <ol :start="store.segmentHistory.start"><li v-for="segment in store.segmentHistory.items" :key="segment.id">
             <button :disabled="disabled" @click="seek(segment.start_s)">{{ segment.start_s.toFixed(3) }} s · {{ segment.label }}</button>
             <span>{{ review(segment.review_status ?? 'unknown') }} · {{ training(segment.training_approved) }}</span>
           </li></ol>
-          <p v-if="data.segments.length > 100" class="subtle">显示前 100 个阶段；当前阶段仍按完整列表匹配。</p>
+          <nav v-if="store.segmentHistory.pageCount > 1" aria-label="历史阶段分页">
+            <button type="button" :disabled="store.segmentHistory.page === 1" @click="store.setSegmentPage(store.segmentHistory.page - 1)">上一页</button>
+            <span>{{ store.segmentHistory.start }}–{{ store.segmentHistory.end }} / {{ store.segmentHistory.total }} · 第 {{ store.segmentHistory.page }} / {{ store.segmentHistory.pageCount }} 页</span>
+            <button type="button" :disabled="store.segmentHistory.page === store.segmentHistory.pageCount" @click="store.setSegmentPage(store.segmentHistory.page + 1)">下一页</button>
+          </nav>
         </details>
       </template>
       <p v-else class="subtle">此日志没有对齐到源帧的阶段标注。</p>
       <details v-if="data.events.length" class="annotation-history">
         <summary>历史事件 · {{ data.events.length }} · 诊断记录，不代表当前状态</summary>
-        <ol><li v-for="event in data.events.slice(0, 100)" :key="event.id">
+        <ol :start="store.eventHistory.start"><li v-for="event in store.eventHistory.items" :key="event.id">
           <button :disabled="disabled || event.time_s === null" @click="seek(event.time_s)">
             {{ event.time_s === null ? '无法对齐 · 不可定位' : `${event.time_s.toFixed(3)} s` }} · {{ event.kind }}
           </button>
           <span>{{ event.message }}</span>
           <details v-if="Object.keys(event.details ?? {}).length"><summary>源事件详情</summary><pre>{{ JSON.stringify(event.details, null, 2) }}</pre></details>
         </li></ol>
-        <p v-if="data.events.length > 100" class="subtle">显示前 100 条历史事件。</p>
+        <nav v-if="store.eventHistory.pageCount > 1" aria-label="历史事件分页">
+          <button type="button" :disabled="store.eventHistory.page === 1" @click="store.setEventPage(store.eventHistory.page - 1)">上一页</button>
+          <span>{{ store.eventHistory.start }}–{{ store.eventHistory.end }} / {{ store.eventHistory.total }} · 第 {{ store.eventHistory.page }} / {{ store.eventHistory.pageCount }} 页</span>
+          <button type="button" :disabled="store.eventHistory.page === store.eventHistory.pageCount" @click="store.setEventPage(store.eventHistory.page + 1)">下一页</button>
+        </nav>
       </details>
     </template>
   </section>
