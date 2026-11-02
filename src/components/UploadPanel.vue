@@ -107,7 +107,7 @@ function loadDemo() {
       <n-button v-if="mock" block secondary class="demo-button" data-testid="demo-load" :disabled="!ready || busy || activationBusy" @click="loadDemo">载入示例日志</n-button>
       <p v-if="!ready" class="upload-hint">会话环境就绪后才能上传。</p>
     </div>
-    <input ref="fileInput" data-testid="file-input" class="visually-hidden" type="file" accept=".csv,.json,.b041" aria-label="上传日志文件" :disabled="uploadDisabled" @change="selectFile" />
+    <input ref="fileInput" data-testid="file-input" class="visually-hidden" tabindex="-1" type="file" accept=".csv,.json,.b041" aria-label="上传日志文件" :disabled="uploadDisabled" @change="selectFile" />
     <p v-if="fileError" data-testid="upload-file-error" class="upload-error" role="alert">{{ fileError }}</p>
     <p v-if="busy" class="processing-note" role="status" data-testid="upload-processing">正在处理，请稍候… 当前激活日志与画面保持。关闭抽屉仅隐藏此面板。</p>
     <div v-if="result && !configuring && !busy" class="upload-result" data-testid="upload-result">

@@ -9,6 +9,7 @@ import { useUiStore } from "./stores/ui";
 import { SCENARIOS, type ScenarioId } from "./domain/types";
 import { PRESENTATION_GROUP_RECTS, PRESENTATION_WIDTH, PRESENTATION_HEIGHT } from "./media/renderer";
 import LogDetailsPanel from "./components/LogDetailsPanel.vue";
+import PresentedData from "./components/PresentedData.vue";
 import UploadPanel from "./components/UploadPanel.vue";
 import TimelineControl from "./components/TimelineControl.vue";
 import HistoryControls from "./components/HistoryControls.vue";
@@ -40,11 +41,11 @@ const controller = createWorkbenchController({
 });
 const importOpen = ref(false), detailsOpen = ref(false), closeOpen = ref(false), seekOpen = ref(false), channelOpen = ref(false), healthOpen = ref(false), annotationOpen = ref(false);
 const analysisTab = ref<"stages" | "limits" | "activity">("stages");
-const seekMode = ref<"time" | "frame">("time"), seekText = ref("0"), channelDraft = ref<string[]>([]);
+const seekMode = ref<"time" | "frame">("time"), seekText = ref<string | number>("0"), channelDraft = ref<string[]>([]);
 const activeDetails = computed(() => playback.getLogDetails(session.sid ?? "", playback.server?.log_id));
 const displayedDetails = computed(() => playback.getLogDetails(session.sid ?? "", telemetry.presented?.log_id));
 const candidateDetails = computed(() => playback.getLogDetails(session.sid ?? "", playback.uploaded?.log_id));
-const seekValid = computed(() => seekText.value.trim() !== "" && Number.isFinite(Number(seekText.value)) && Number(seekText.value) >= 0 && (seekMode.value === "time" || Number.isInteger(Number(seekText.value))));
+const seekValid = computed(() => String(seekText.value).trim() !== "" && Number.isFinite(Number(seekText.value)) && Number(seekText.value) >= 0 && (seekMode.value === "time" || Number.isInteger(Number(seekText.value))));
 function submitSeek() { if (!canControl.value || busy.value || !seekValid.value) return; void controller.control("seek", seekMode.value === "time" ? {time_s: Number(seekText.value)} : {frame_index: Number(seekText.value)}); seekOpen.value = false; }
 function openChannels() { channelDraft.value = [...history.selected]; channelOpen.value = true; }
 function applyChannels() { history.setSelected(channelDraft.value); channelOpen.value = false; }
@@ -134,11 +135,25 @@ const canPlay = computed(
 const canPause = computed(
   () => canControl.value && !busy.value && playback.server?.state === "playing",
 );
+const stagePreview = computed(() => {
+  const data = annotations.currentData;
+  if (!data || data.alignment !== 'source_frames') return [];
+  const time = displayed.value?.log_time_s ?? 0;
+  const nearest: { segment: typeof data.segments[number]; index: number; distance: number }[] = [];
+  data.segments.forEach((segment, index) => {
+    const distance = segment.start_s <= time && time < segment.end_s
+      ? 0 : Math.min(Math.abs(segment.start_s - time), Math.abs(segment.end_s - time));
+    nearest.push({ segment, index, distance });
+    nearest.sort((a, b) => a.distance - b.distance || a.index - b.index);
+    if (nearest.length > 8) nearest.pop();
+  });
+  return nearest.sort((a, b) => a.index - b.index).map(item => item.segment);
+});
 const groups = [
-  { id: "base", label: "底盘 · 6" },
-  { id: "torso", label: "躯干 · 4" },
   { id: "left", label: "左臂与夹爪 · 9" },
   { id: "right", label: "右臂与夹爪 · 9" },
+  { id: "torso", label: "躯干 · 4" },
+  { id: "base", label: "底盘 · 6" },
 ];
 function toggleGroup(id: string) {
   ui.collapsedGroups = ui.collapsedGroups.includes(id)
@@ -270,6 +285,7 @@ onBeforeUnmount(() => {
                 </div>
               </div>
             </div>
+            <PresentedData :snapshot="displayed" :metadata="session.jointMeta" />
             <div class="transport">
               <div class="control-row">
                 <div class="play-controls">
@@ -327,11 +343,11 @@ onBeforeUnmount(() => {
               <h3>当前阶段</h3>
               <p v-if="annotations.currentData?.alignment === 'reference_only'">仅供历史来源参考，未对齐当前运行。</p>
               <p
-                v-else-if="annotations.currentSegments.length">{{ annotations.currentSegments.map(segment => segment.label).join(' · ') }}</p>
+                v-else-if="annotations.currentSegments.length">{{ annotations.currentSegments.slice(0, 8).map(segment => segment.label).join(' · ') }}{{ annotations.currentSegments.length > 8 ? ` · 另有 ${annotations.currentSegments.length - 8} 个当前阶段` : '' }}</p>
               <p v-else>当前已呈现时刻没有对应阶段。</p>
               <small>来源 {{ annotations.currentData?.source_id ?? '未提供' }} · {{ annotations.currentData?.alignment ?? '等待对应日志画面' }}</small>
               <div v-if="annotations.currentData?.alignment === 'source_frames' && annotations.currentData.segments.length" class="phase-timeline" aria-label="源记录阶段">
-                <button v-for="segment in annotations.currentData.segments" :key="segment.id" :aria-current="annotations.currentSegments.some(current => current.id === segment.id) ? 'true' : undefined" :disabled="!canControl || busy || !displayed || segment.start_s > displayed.duration_s" :title="`${segment.start_s.toFixed(3)}–${segment.end_s.toFixed(3)} s`" @click="controller.seek(segment.start_s)">{{ segment.label }} <small>{{ segment.start_s.toFixed(3) }} s</small></button>
+                <button v-for="segment in stagePreview" :key="segment.id" :aria-current="annotations.currentSegments.some(current => current.id === segment.id) ? 'true' : undefined" :disabled="!canControl || busy || !displayed || segment.start_s > displayed.duration_s" :title="`${segment.start_s.toFixed(3)}–${segment.end_s.toFixed(3)} s`" @click="controller.seek(segment.start_s)">{{ segment.label }} <small>{{ segment.start_s.toFixed(3) }} s</small></button>
               </div>
             </div>
             <n-button data-testid="open-annotations" @click="annotationOpen = true">全部阶段与来源</n-button>
