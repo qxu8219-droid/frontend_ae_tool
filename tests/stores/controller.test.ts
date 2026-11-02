@@ -5,7 +5,7 @@ import { useSessionStore } from "../../src/stores/session";
 import { usePlaybackStore } from "../../src/stores/playback";
 import { useTelemetryStore } from "../../src/stores/telemetry";
 import { ApiError, type ApiClient } from "../../src/api/client";
-import type { ControlAck } from "../../src/domain/types";
+import type { ControlAck, UploadResult } from "../../src/domain/types";
 import type { SessionSocketOptions } from "../../src/api/socket";
 import { useHistoryStore } from "../../src/stores/history";
 import { useUiStore } from "../../src/stores/ui";
@@ -94,6 +94,10 @@ it("uploads mapping and retains the active log until explicit activation", async
     mapping_config: { timestamp: { field: "time", unit: "s" } },
   });
   expect(usePlaybackStore().uploaded?.log_id).toBe(uploaded.log_id);
+  expect(usePlaybackStore().getLogDetails("s", uploaded.log_id)).toMatchObject({
+    sessionId: "s", fileName: "data.json", fileSize: 2,
+    result: { log_id: uploaded.log_id },
+  });
   expect(usePlaybackStore().server?.target_position?.log_time_s).toBe(5);
   expect(useUiStore().error).toBeNull();
   controller.dispose();
@@ -432,11 +436,67 @@ it("a failed replacement upload cannot leave an old result available for activat
     getCanvas: () => null,
   });
   useSessionStore().sid = "s";
-  usePlaybackStore().uploaded = example("service/upload_result");
+  usePlaybackStore().recordUpload("s", { ...example("service/upload_result"), log_id: "l" }, { name: "active.json", size: 12 });
   usePlaybackStore().update(ack(5).playback);
   await c.loadFile(new File(["bad"], "new.log"));
   expect(usePlaybackStore().uploaded).toBeNull();
   expect(usePlaybackStore().server?.log_id).toBe("l");
+  expect(usePlaybackStore().getLogDetails("s", "l")?.fileName).toBe("active.json");
+  c.dispose();
+});
+
+it("keeps active import details when another uploaded log becomes the candidate", async () => {
+  const uploads = [
+    { ...example("service/upload_result"), log_id: "a" },
+    { ...example("service/upload_result"), log_id: "b" },
+  ];
+  const api = { upload: async () => uploads.shift()! } as unknown as ApiClient;
+  const c = createWorkbenchController({ api, source, socketFactory, getCanvas: () => null });
+  const playback = usePlaybackStore();
+  useSessionStore().sid = "s";
+  await c.loadFile(new File(["first"], "a.json"));
+  playback.update({ ...ack(0).playback, log_id: "a" });
+  await c.loadFile(new File(["second"], "b.json"));
+  expect(playback.server?.log_id).toBe("a");
+  expect(playback.uploaded?.log_id).toBe("b");
+  expect(playback.getLogDetails("s", "a")?.fileName).toBe("a.json");
+  expect(playback.getLogDetails("s", "b")?.fileName).toBe("b.json");
+  c.dispose();
+});
+
+it("ignores a retired upload completion after close and recreate without replacing new details", async () => {
+  let completeOld!: (value: UploadResult) => void;
+  const api = {
+    upload: async (sid: string) => sid === "old"
+      ? new Promise<UploadResult>(resolve => { completeOld = resolve; })
+      : { ...example("service/upload_result"), log_id: "new-log" },
+    deleteSession: async () => {},
+    createSession: async () => ({ session_id: "new", status: "starting", ws_url: "/ws" }),
+  } as unknown as ApiClient;
+  const c = createWorkbenchController({ api, source, socketFactory, getCanvas: () => null });
+  const playback = usePlaybackStore();
+  useSessionStore().sid = "old";
+  const old = c.loadFile(new File(["old"], "old.json"));
+  await c.close();
+  await c.create();
+  await c.loadFile(new File(["new"], "new.json"));
+  completeOld({ ...example<UploadResult>("service/upload_result"), log_id: "old-log" });
+  expect(await old).toBeNull();
+  expect(playback.uploaded?.log_id).toBe("new-log");
+  expect(playback.getLogDetails("old", "old-log")).toBeNull();
+  expect(playback.getLogDetails("new", "old-log")).toBeNull();
+  expect(playback.getLogDetails("new", "new-log")?.fileName).toBe("new.json");
+  c.dispose();
+});
+
+it("clears cached imports when creating a new session", async () => {
+  const api = { createSession: async () => ({ session_id: "new", status: "starting", ws_url: "/ws" }) } as unknown as ApiClient;
+  const c = createWorkbenchController({ api, source, socketFactory, getCanvas: () => null });
+  const playback = usePlaybackStore();
+  playback.recordUpload("old", example("service/upload_result"), { name: "old.json", size: 3 });
+  await c.create();
+  expect(playback.uploaded).toBeNull();
+  expect(playback.getLogDetails("old", example("service/upload_result").log_id)).toBeNull();
   c.dispose();
 });
 it("a failed deletion retains a cleanup handle so Close can retry instead of stranding the server session", async () => {

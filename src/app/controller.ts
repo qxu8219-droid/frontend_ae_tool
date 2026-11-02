@@ -486,7 +486,7 @@ export function createWorkbenchController(options: {
       return null;
     }
     let uploaded: Schema["UploadResult"] | null = null;
-    playback.uploaded = null;
+    playback.beginUpload(sid);
     ui.uploadIssues = [];
     ui.uploading = true;
     await action(async () => {
@@ -515,7 +515,7 @@ export function createWorkbenchController(options: {
         throw error;
       }
       if (ticket !== lifecycle || session.sid !== sid) return;
-      playback.uploaded = result;
+      playback.recordUpload(sid, result, file);
       uploaded = result;
       ui.uploadIssues = result.issues;
       ui.log("上传结果已就绪，请核对映射与质量后激活日志");
