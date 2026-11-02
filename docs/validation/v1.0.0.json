@@ -1,0 +1,41 @@
+{
+  "release": "v1.0.0",
+  "date": "2026-11-02",
+  "component": "frontend",
+  "application_version": "1.0.0",
+  "implementation_commit": "232634f",
+  "checks": {
+    "npm test": {
+      "exit_code": 0,
+      "files_passed": 26,
+      "tests_passed": 264,
+      "log": "output/release-v1.0.0/frontend-20261102T031102Z/npm-test.log",
+      "log_sha256": "80a265fb45917c2513f76798685ac3ab6afdad951c3e290b05b98f8f5c087d0d"
+    },
+    "VITE_USE_MOCK=false npm run build": {
+      "exit_code": 0,
+      "typecheck_passed": true,
+      "modules_transformed": 3436,
+      "warning": "Chunk index-B4GJJ-pY.js is 531.17 kB (gzip 158.60 kB), above the 500 kB warning limit.",
+      "log": "output/release-v1.0.0/frontend-20261102T031102Z/production-build.log",
+      "log_sha256": "e59d1db0c97832b8bda986d60a28030658bac79e73ea76e96b0030d78f1f8706"
+    },
+    "npm run test:e2e -- --output=<run_dir>/test-results": {
+      "exit_code": 0,
+      "tests_passed": 14,
+      "mock_tests_passed": 13,
+      "contract_only_real_mode_tests_passed": 1,
+      "duration": "1.1m",
+      "log": "output/release-v1.0.0/frontend-20261102T031102Z/e2e.log",
+      "log_sha256": "bdcb7af91df83e83fdbb25e009bccead1fe39aca3c8e6264f511eac5ccaa3dc0"
+    }
+  },
+  "test_ports_still_listening": [],
+  "scope": "Fresh unit/typecheck/build and default Mock/contract browser checks; no real SDK/GPU rerun. Release metadata and workflow reviewed separately.",
+  "warnings": [
+    "Vite main chunk exceeds 500 kB.",
+    "Node module.register() deprecation and NO_COLOR/FORCE_COLOR notices."
+  ],
+  "historical_gpu_evidence": "https://github.com/qxu8219-droid/backend_ae_tool/blob/v1.0.0/docs/validation/t18-status.md",
+  "raw_test_logs_tracked": false
+}

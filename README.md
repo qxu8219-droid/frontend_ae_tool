@@ -1,12 +1,14 @@
 # 机器人日志回放前端
 
-T05～T07 已提供可独立运行的 Vue Mock 工作台。包含会话创建、上传检查与映射、完整播放器、28 关节分组与底盘朝向、历史曲线、事件过滤/定位、系统健康与故障场景。T15 接入实际 IsaacSim 6.2 视频和正式后端业务，T16 已增加 B041 便携包上传、暂定映射来源及按源帧对齐的标注展示。真实视频与数据严格按同帧身份共同呈现；Mock 模式保留独立合成示意图。媒体使用见 [真实回放说明](docs/real-media-v1.md)，真机数据使用见 [B041 回放说明](../backend/docs/b041-replay-v1.md)。
+当前发布基线：**v1.0.0**。查看[发布说明](docs/releases/v1.0.0.md)与[Git 开发规范](CONTRIBUTING.md)。两个仓库需使用同名版本标签；后续需求从 `main` 新建分支。
 
-首次安装和本地交付请先阅读 [运行手册](../backend/docs/delivery-v1.md)；故障定位见 [排查说明](../backend/docs/troubleshooting-v1.md)，本次交付版本见 [T18记录](../backend/docs/validation/t18-status.md)。
+T05～T07 已提供可独立运行的 Vue Mock 工作台。包含会话创建、上传检查与映射、完整播放器、28 关节分组与底盘朝向、历史曲线、事件过滤/定位、系统健康与故障场景。T15 接入实际 IsaacSim 6.2 视频和正式后端业务，T16 已增加 B041 便携包上传、暂定映射来源及按源帧对齐的标注展示。真实视频与数据严格按同帧身份共同呈现；Mock 模式保留独立合成示意图。媒体使用见 [真实回放说明](docs/real-media-v1.md)，真机数据使用见 [B041 回放说明](https://github.com/qxu8219-droid/backend_ae_tool/blob/v1.0.0/docs/b041-replay-v1.md)。
+
+首次安装和本地交付请先阅读 [运行手册](https://github.com/qxu8219-droid/backend_ae_tool/blob/v1.0.0/docs/delivery-v1.md)；故障定位见 [排查说明](https://github.com/qxu8219-droid/backend_ae_tool/blob/v1.0.0/docs/troubleshooting-v1.md)，本次交付版本见 [T18记录](https://github.com/qxu8219-droid/backend_ae_tool/blob/v1.0.0/docs/validation/t18-status.md)。
 
 ## 启动
 
-T17 已完成本地 30 分钟真实回放、进程/消息故障与无损屏幕逐帧核对，见[验证记录](../backend/docs/validation/t17-status.md)。真实模式会记住当前标签页成功创建的会话；刷新时先释放旧会话，再重新创建并上传日志。失败时可“重试关闭”，复制标签页不会自动接管普通导航继承的会话。创建响应尚未返回 sid 就强制销毁文档的情况，暂不自动恢复。原始日志和映射需另行保留。
+T17 已完成本地 30 分钟真实回放、进程/消息故障与无损屏幕逐帧核对，见[验证记录](https://github.com/qxu8219-droid/backend_ae_tool/blob/v1.0.0/docs/validation/t17-status.md)。真实模式会记住当前标签页成功创建的会话；刷新时先释放旧会话，再重新创建并上传日志。失败时可“重试关闭”，复制标签页不会自动接管普通导航继承的会话。创建响应尚未返回 sid 就强制销毁文档的情况，暂不自动恢复。原始日志和映射需另行保留。
 
 本机验证环境为 Node 26.8.1、npm 11.19.0。依赖锁定在 `package-lock.json`，首次安装后默认启动明确标注的 Mock 模式，不需要 GPU 或后端：
 
@@ -41,7 +43,7 @@ VITE_USE_MOCK=false API_PROXY_TARGET=http://127.0.0.1:8000 npm run dev
 
 默认把 `/api`、`/ws` 代理至本机 8000。请在 `../backend` 用 `ISAACSIM_PYTHON=... bash scripts/run_backend.sh` 启动实际服务；直接启动默认契约应用仍返回 `503 BACKEND_NOT_CONFIGURED`。首次创建后等待 worker 就绪，上传 CSV/JSON/`.b041` 并检查映射，再激活回放。
 
-B041 可选择 `../backend/data/real_logs/derived/<source_id>/b041_ee2_body_velocity_v1/recording.b041`，在“解析器与映射配置”的“映射 JSON”粘贴同目录 `mapping.json` 内容；解析器可留空。检查导入统计、诊断及映射快照后再点“激活此日志”。完整保存的映射快照可原样重导入；变更夹爪或底盘假设只使用 `b041` 专用参数，通用字段覆盖会被后端以 400 拒绝。
+B041 先在“解析器与映射配置”的“映射 JSON”粘贴 `mapping.json` 内容，再选择同目录 `recording.b041`；选择文件会触发上传，解析器可留空。通常路径为 `../backend/data/real_logs/derived/<source_id>/b041_ee2_body_velocity_v1/`。检查导入统计、诊断及映射快照后再点“激活此日志”。完整保存的映射快照可原样重导入；变更夹爪或底盘假设只使用 `b041` 专用参数，通用字段覆盖会被后端以 400 拒绝。
 
 “标注与来源”显示当前已呈现时刻对应的源帧阶段、暂定假设和待审状态。`pending_review`、`training_approved=false` 保持源状态；Rim 的 `reference_only` 仅作历史来源参考，不映射到当前运行或用于定位。四个 finger 和离线积分底盘明确标为推算，在线无可靠位姿时底盘不可用，不能依据 target 移动。历史事件与当前帧状态分开呈现。
 
