@@ -64,7 +64,7 @@ test('T17 bounded actual B041 browser recording for independent every-frame anal
     await page.getByTestId('play').click(); await pair('recording-playing', sample => sample.snapshot.state === 'playing');
     // A documented 1:1 CSS display avoids additional resampling of text glyphs.
     // These test styles affect layout only, never source pixels or panel content.
-    await page.addStyleTag({ content: '[data-testid="paired-canvas"]{width:1280px!important;min-width:1280px!important;height:1080px!important}.stage-scroll{overflow:visible!important}' });
+    await page.addStyleTag({ content: '[data-testid="paired-canvas"]{width:1600px!important;min-width:1600px!important;height:800px!important}.stage-scroll{overflow:visible!important}' });
     await page.getByTestId('paired-canvas').evaluate(canvas => canvas.scrollIntoView({ block: 'start', inline: 'nearest' }));
     await page.getByTestId('paired-canvas').evaluate(canvas => {
       const bounds = canvas.getBoundingClientRect();
@@ -72,7 +72,7 @@ test('T17 bounded actual B041 browser recording for independent every-frame anal
     });
     await page.waitForTimeout(400);
     const bounds = await page.getByTestId('paired-canvas').boundingBox();
-    expect(bounds).not.toBeNull(); expect(bounds!.width).toBe(1280); expect(bounds!.height).toBe(1080);
+    expect(bounds).not.toBeNull(); expect(bounds!.width).toBe(1600); expect(bounds!.height).toBe(800);
     expect(Number.isInteger(bounds!.x)).toBe(true); expect(Number.isInteger(bounds!.y)).toBe(true);
     expect(bounds!.x).toBeGreaterThanOrEqual(0); expect(bounds!.y).toBeGreaterThanOrEqual(0);
     expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(1600); expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(1250);

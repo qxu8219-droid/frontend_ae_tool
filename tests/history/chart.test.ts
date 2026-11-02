@@ -28,10 +28,10 @@ it("separates differently scaled channels into grids with their own value axes",
 });
 it("keeps a shared time projection bounded for the renderer cursor and degenerate ranges", () => {
   expect(timeToChartX(0, 0, 12)).toBe(60);
-  expect(timeToChartX(6, 0, 12)).toBe(640);
-  expect(timeToChartX(12, 0, 12)).toBe(1220);
+  expect(timeToChartX(6, 0, 12)).toBe(804);
+  expect(timeToChartX(12, 0, 12)).toBe(1548);
   expect(timeToChartX(-5, 0, 12)).toBe(60);
-  expect(timeToChartX(20, 0, 12)).toBe(1220);
+  expect(timeToChartX(20, 0, 12)).toBe(1548);
   expect(timeToChartX(1, 1, 1)).toBe(60);
 });
 it("can be created and disposed before a browser canvas exists", () => {

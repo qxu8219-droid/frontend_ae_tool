@@ -152,34 +152,35 @@ export async function readPair(page: Page, expectedLayout?: { sourceWidth: numbe
     for (const byte of robotPixels)
       robotPixelsHash = Math.imul(robotPixelsHash ^ byte, 16777619) >>> 0;
     const isColor = (x: number, rgb: [number, number, number]) => {
-      const pixel = context.getImageData(x, 678, 1, 1).data;
+      const pixel = context.getImageData(x, 529, 1, 1).data;
       return rgb.every((value, i) => Math.abs(value - pixel[i]!) <= 2);
     };
-    const fillWidth = 900 * snapshot.progress;
+    const fillWidth = 768 * snapshot.progress;
     const filled =
-      fillWidth < 3 || isColor(20 + Math.floor(fillWidth / 2), [69, 216, 232]);
+      fillWidth < 3 || isColor(16 + Math.floor(fillWidth / 2), [53, 111, 173]);
     const empty =
-      fillWidth > 897 ||
-      isColor(20 + Math.ceil((fillWidth + 900) / 2), [38, 55, 75]);
+      fillWidth > 765 ||
+      isColor(16 + Math.ceil((fillWidth + 768) / 2), [222, 230, 239]);
     // Rasterize only the documented numeric labels on an independent canvas.
     // Pixel comparison includes glyph shape and blank background, so stale or
     // extra digits cannot pass merely because the diagnostic value is correct.
     const expectedCanvas = document.createElement("canvas");
-    expectedCanvas.width = 1280;
-    expectedCanvas.height = 1080;
+    expectedCanvas.width = 1600;
+    expectedCanvas.height = 800;
     const expected = expectedCanvas.getContext("2d", {
       willReadFrequently: true,
     })!;
-    expected.fillStyle = "#0b1523";
-    expected.fillRect(20, 592, 900, 74);
-    expected.fillRect(936, 70, 324, 584);
+    expected.fillStyle = "#f3f6fa";
+    expected.fillRect(0, 0, 1600, 800);
+    expected.fillStyle = "#ffffff";
+    expected.fillRect(16, 488, 768, 42);
     expected.textBaseline = "alphabetic";
     expected.font = "15px ui-monospace, SFMono-Regular, Menlo, monospace";
-    expected.fillStyle = "#e5edf6";
+    expected.fillStyle = "#18304e";
     expected.fillText(
       `LOG TIME  ${snapshot.log_time_s.toFixed(3)} / ${snapshot.duration_s.toFixed(3)} s`,
       20,
-      612,
+      506,
     );
     const pose = snapshot.chassis;
     // Independent provenance oracle: use captured per-axis quality, including legacy unknowns.
@@ -195,16 +196,16 @@ export async function readPair(page: Page, expectedLayout?: { sourceWidth: numbe
       if (quality?.method?.startsWith('b041.provisional.')) labels.push('暂定');
       if (quality && !quality.valid && quality.origin !== 'missing') labels.push('无效');
       expected.font = '13px ui-monospace, SFMono-Regular, Menlo, monospace';
-      expected.fillStyle = available ? '#e5edf6' : '#738092';
+      expected.fillStyle = available ? '#18304e' : '#75859a';
       expected.fillText(`${index === 0 ? 'CHASSIS ' : ''}${axis} ${available ? pose![axis].toFixed(3) : '—'} ${axis === 'yaw' ? 'rad' : 'm'} · ${labels.join('·')}`,
-        20 + index * 260, 637, 250);
+        20 + index * 250, 526, 245);
     });
-    expected.font = "14px ui-monospace, SFMono-Regular, Menlo, monospace";
-    expected.fillStyle = "#8297af";
+    expected.font = "13px ui-monospace, SFMono-Regular, Menlo, monospace";
+    expected.fillStyle = "#60748c";
     expected.fillText(
       `Wheel source rad: ${[1, 3, 5].map((index) => snapshot.source_joints[index]!.toFixed(3)).join(" / ")} (unwrapped)`,
-      20,
-      660,
+      390,
+      30,
     );
     const mismatches = (
       x: number,
@@ -221,26 +222,17 @@ export async function readPair(page: Page, expectedLayout?: { sourceWidth: numbe
     };
     const selectedJoints = [0, 1, 17, 25, 26, 27];
     const jointMismatches = selectedJoints.map((index) => {
-      const y = 137 + index * 17.5;
-      if (index % 2 === 0) {
-        expected.fillStyle = "#0f1c2c";
-        expected.fillRect(942, y - 13, 312, 17.5);
-      }
+      const [x, top, offset, width] = index < 6 ? [1192, 320, index, 392] : index < 10 ? [800, 320, index - 6, 384] : index < 19 ? [800, 48, index - 10, 384] : [1192, 48, index - 19, 392];
+      const y = top + 67 + offset * 21;
+      expected.fillStyle = offset % 2 === 0 ? "#f5f8fc" : "#ffffff";
+      expected.fillRect(x + 1, y - 16, width - 2, 21);
       const quality = snapshot.quality[index]!;
-      expected.fillStyle =
-        !quality.valid || quality.origin === "missing" ? "#738092" : "#e5edf6";
+      expected.fillStyle = !quality.valid || quality.origin === "missing" ? "#75859a" : "#18304e";
       expected.textAlign = "right";
+      expected.font = "16px ui-monospace, SFMono-Regular, Menlo, monospace";
       const value = snapshot.joints[index]!;
-      expected.fillText(
-        !quality.valid || quality.origin === "missing"
-          ? "—"
-          : Math.abs(value) >= 10000
-            ? value.toExponential(1)
-            : value.toFixed(3),
-        1093,
-        y,
-      );
-      return mismatches(1020, Math.ceil(y - 13), 75, 16);
+      expected.fillText(!quality.valid || quality.origin === "missing" ? "—" : Math.abs(value) >= 10000 ? value.toExponential(1) : value.toFixed(3), x + 177, y);
+      return mismatches(x + 100, y - 16, 79, 19);
     });
     return {
       snapshot,
@@ -251,11 +243,11 @@ export async function readPair(page: Page, expectedLayout?: { sourceWidth: numbe
       canvas: { width: canvas.width, height: canvas.height },
       robotPixelsHash,
       captureAgeMs: Date.now() - snapshot.captured_wall_s * 1000,
-      visibleChassis: mismatches(20, 621, 780, 21),
+      visibleChassis: mismatches(20, 512, 750, 15),
       progressPixels: { filled, empty },
       visibleText: {
-        time: mismatches(20, 593, 450, 24),
-        source: mismatches(20, 644, 700, 22),
+        time: mismatches(20, 488, 450, 21),
+        source: mismatches(390, 16, 600, 18),
         joints: jointMismatches,
       },
     };
@@ -264,7 +256,7 @@ export async function readPair(page: Page, expectedLayout?: { sourceWidth: numbe
 
 export function assertPair(sample: PairSample, sid?: string): void {
   const { snapshot, stamp, sync, source } = sample;
-  expect(sample.canvas).toEqual({ width: 1280, height: 1080 });
+  expect(sample.canvas).toEqual({ width: 1600, height: 800 });
   expect(
     stamp.confident,
     "All 64 stamp pixels must have readable red/green contrast",
