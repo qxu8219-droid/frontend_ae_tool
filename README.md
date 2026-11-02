@@ -2,7 +2,11 @@
 
 T05～T07 已提供可独立运行的 Vue Mock 工作台。包含会话创建、上传检查与映射、完整播放器、28 关节分组与底盘朝向、历史曲线、事件过滤/定位、系统健康与故障场景。T15 接入实际 IsaacSim 6.2 视频和正式后端业务，T16 已增加 B041 便携包上传、暂定映射来源及按源帧对齐的标注展示。真实视频与数据严格按同帧身份共同呈现；Mock 模式保留独立合成示意图。媒体使用见 [真实回放说明](docs/real-media-v1.md)，真机数据使用见 [B041 回放说明](../backend/docs/b041-replay-v1.md)。
 
+首次安装和本地交付请先阅读 [运行手册](../backend/docs/delivery-v1.md)；故障定位见 [排查说明](../backend/docs/troubleshooting-v1.md)，本次交付版本见 [T18记录](../backend/docs/validation/t18-status.md)。
+
 ## 启动
+
+T17 已完成本地 30 分钟真实回放、进程/消息故障与无损屏幕逐帧核对，见[验证记录](../backend/docs/validation/t17-status.md)。真实模式会记住当前标签页成功创建的会话；刷新时先释放旧会话，再重新创建并上传日志。失败时可“重试关闭”，复制标签页不会自动接管普通导航继承的会话。创建响应尚未返回 sid 就强制销毁文档的情况，暂不自动恢复。原始日志和映射需另行保留。
 
 本机验证环境为 Node 26.8.1、npm 11.19.0。依赖锁定在 `package-lock.json`，首次安装后默认启动明确标注的 Mock 模式，不需要 GPU 或后端：
 
@@ -32,7 +36,7 @@ Mock 帧依据冻结快照绘制，经 ImageBitmap 实际像素 ID＋CRC 校验�
 ## 真实模式
 
 ```bash
-VITE_USE_MOCK=false npm run dev
+VITE_USE_MOCK=false API_PROXY_TARGET=http://127.0.0.1:8000 npm run dev
 ```
 
 默认把 `/api`、`/ws` 代理至本机 8000。请在 `../backend` 用 `ISAACSIM_PYTHON=... bash scripts/run_backend.sh` 启动实际服务；直接启动默认契约应用仍返回 `503 BACKEND_NOT_CONFIGURED`。首次创建后等待 worker 就绪，上传 CSV/JSON/`.b041` 并检查映射，再激活回放。
@@ -43,7 +47,7 @@ B041 可选择 `../backend/data/real_logs/derived/<source_id>/b041_ee2_body_velo
 
 真实模式前端上传上限默认 64MiB，可通过 `VITE_MAX_UPLOAD_BYTES` 设置；最终仍以服务端校验为准。Mock 固定为 1MiB。
 
-用 `API_PROXY_TARGET=http://127.0.0.1:18000` 调整开发代理目标；`VITE_API_BASE_URL` 调整 API 基址。切换模式后重启 Vite 并刷新页面。生产构建的模式同样在构建时确定。
+用 `API_PROXY_TARGET=http://127.0.0.1:18000` 调整开发代理目标；`VITE_API_BASE_URL` 调整 API 基址。切换模式后重启 Vite 并刷新页面。构建模式同样在构建时确定：真实构建使用 `VITE_USE_MOCK=false npm run build`。`API_PROXY_TARGET` 由启动进程环境读取，需通过shell显式设置，不能只写入未source的.env.local。
 
 ## 检查
 
@@ -72,4 +76,4 @@ npm run check --prefix tools/contracts
 
 `public/mockServiceWorker.js` 由固定版本 MSW 生成并入库；升级 MSW 后通过 `npx msw init public --save` 更新。不要手改生成契约、Schema 或关节元数据 fixture。
 
-T15 的合成日志验证见 [T15 记录](docs/validation/t15-status.md)。T16 已完成两份离线、live 与 Rim 的本地核对和真实 SDK/UI 回放；用户授权的夹爪/底盘假设仍为暂定，已下载原件保持只读，精确资料到达后以新 profile 重新生成。完整 MCAP、实物精确标定与 T17 长时间稳定性验证尚未完成。
+T15 的合成日志验证见 [T15 记录](docs/validation/t15-status.md)。T16 已完成两份离线、live 与 Rim 的本地核对和真实 SDK/UI 回放；用户授权的夹爪/底盘假设仍为暂定，已下载原件保持只读，精确资料到达后以新 profile 重新生成。完整 MCAP 与实物精确标定尚未完成；T17 本地长测和故障矩阵已独立验收。

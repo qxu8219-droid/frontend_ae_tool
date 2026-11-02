@@ -1,6 +1,7 @@
 import { test, expect, type WebSocketRoute } from '@playwright/test';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import assert from 'node:assert/strict';
 import { readPair, diagnostics, type PairSample } from './oracle';
 
 test('real SDK workbench presents verified frames through controls, transport loss and worker reload', async ({ page, context, request }) => {
@@ -42,26 +43,29 @@ test('real SDK workbench presents verified frames through controls, transport lo
   page.on('pageerror', error => report.errors.push(error.message));
   let layout: { sourceWidth: number; sourceHeight: number; markerPixels: number[][] };
   let sid = '';
+  // Numeric checks run for every sampled frame. Plain assertions preserve the
+  // oracle without recording thousands of Playwright steps during measurement.
   const check = (sample: PairSample) => {
     const frame = sample.snapshot, t = frame.log_time_s;
-    expect(sample.stamp.confident).toBe(true); expect(sample.stamp.crc).toBe(sample.stamp.expectedCrc);
-    expect(sample.stamp.id).toBe(frame.capture_id); expect(sample.sync.lastCapture).toBe(frame.capture_id);
-    expect(frame.session_id).toBe(sid); expect(frame.progress).toBeCloseTo(t / 12, 10);
-    expect(sample.visibleText).toEqual({ time: 0, source: 0, joints: [0, 0, 0, 0, 0, 0] });
-    expect(sample.visibleChassis).toBe(0); expect(sample.progressPixels).toEqual({ filled: true, empty: true });
+    assert.equal(sample.stamp.confident, true); assert.equal(sample.stamp.crc, sample.stamp.expectedCrc);
+    assert.equal(sample.stamp.id, frame.capture_id); assert.equal(sample.sync.lastCapture, frame.capture_id);
+    assert.equal(frame.session_id, sid); assert.ok(Math.abs(frame.progress - t / 12) < 0.5e-10);
+    assert.deepEqual(sample.visibleText, { time: 0, source: 0, joints: [0, 0, 0, 0, 0, 0] });
+    assert.equal(sample.visibleChassis, 0); assert.deepEqual(sample.progressPixels, { filled: true, empty: true });
     const right = Math.min(source.length - 1, Math.floor(t * 20) + 1), left = Math.max(0, right - 1);
     const weight = (t - source[left][0]) / (source[right][0] - source[left][0]);
     const expected = source[left].map((a, index) => a + (source[right][index] - a) * weight);
     frame.source_joints.forEach((value, index) => {
-      expect(value).toBeCloseTo(expected[index + 1], 8);
+      assert.ok(Math.abs(value - expected[index + 1]) < 0.5e-8, `source joint ${index}`);
       let difference = frame.joints[index] - value;
       if ([1, 3, 5].includes(index)) difference = Math.atan2(Math.sin(difference), Math.cos(difference));
-      expect(Math.abs(difference)).toBeLessThan(1e-5);
-      expect(frame.quality[index].origin).toBe('commanded');
+      assert.ok(Math.abs(difference) < 1e-5, `readback joint ${index}`);
+      assert.equal(frame.quality[index].origin, 'commanded');
     });
-    for (const [index, key] of ['x', 'y', 'yaw'].entries()) expect(frame.chassis?.[key as 'x' | 'y' | 'yaw']).toBeCloseTo(expected[29 + index], 5);
-    expect(sample.sync.frames).toBeLessThanOrEqual(48); expect(sample.sync.snapshots).toBeLessThanOrEqual(48);
-    expect(sample.source?.owned ?? 0).toBeLessThanOrEqual(4); expect(sample.source?.inFlight ?? 0).toBeLessThanOrEqual(4);
+    for (const [index, key] of ['x', 'y', 'yaw'].entries()) assert.ok(Math.abs(frame.chassis![key as 'x' | 'y' | 'yaw'] - expected[29 + index]) < 0.5e-5, `chassis ${key}`);
+    const bounded = (value: number, maximum: number) => assert.ok(Number.isFinite(value) && value <= maximum);
+    bounded(sample.sync.frames, 48); bounded(sample.sync.snapshots, 48);
+    bounded(sample.source?.owned ?? 0, 4); bounded(sample.source?.inFlight ?? 0, 4);
   };
   async function wait(label: string, condition: (sample: PairSample) => boolean = () => true) {
     let found: PairSample | null = null;
@@ -110,8 +114,8 @@ test('real SDK workbench presents verified frames through controls, transport lo
     }
     const end = await page.evaluate(() => ({ at: performance.now(), count: (window as any).__replayDiagnostics.sync().presented }));
     const fps = (end.count - start.count) * 1000 / (end.at - start.at);
-    expect(fps).toBeGreaterThanOrEqual(15); expect(Math.max(...ages)).toBeLessThan(2000); expect(hashes.size).toBeGreaterThan(1);
     report.healthy = { presentedFps: fps, maxCaptureAgeMs: Math.max(...ages), sampleCount: ages.length };
+    expect(fps).toBeGreaterThanOrEqual(15); expect(Math.max(...ages)).toBeLessThan(2000); expect(hashes.size).toBeGreaterThan(1);
     await page.getByTestId('pause').click(); const paused = await wait('paused', sample => sample.snapshot.state === 'paused');
     await page.waitForTimeout(400); const held = await wait('paused-fresh-capture', sample => sample.snapshot.capture_id > paused.snapshot.capture_id);
     expect(held.snapshot.log_time_s).toBe(paused.snapshot.log_time_s);

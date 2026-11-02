@@ -113,6 +113,9 @@ test("UI controls preserve actual frame pairing through play, pause, seek, steps
   ).toBe(true);
 
   for (const speed of [1, 4, 10]) {
+    // Each speed needs its own playback window; otherwise earlier phases can
+    // leave 10x playback at the natural end before the pause assertion.
+    await seek(page, 0);
     await page.getByTestId("speed-select").selectOption(String(speed));
     await waitPair(page, (sample) => sample.snapshot.speed === speed);
     await page.getByTestId("play").click();
