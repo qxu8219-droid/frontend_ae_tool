@@ -175,8 +175,8 @@ export async function installRecordingEvidence(page: Page, output: string) {
         ctx.fillStyle = unavailable ? '#75859a' : '#18304e';
         ctx.textAlign = 'right'; ctx.font = `16px ${mono}`;
         const value = snapshot.joints[index]!;
-        ctx.fillText(unavailable ? '—' : Math.abs(value) >= 10000 ? value.toExponential(1) : value.toFixed(3), x + 177, y);
-        regions.push({ name: `joint_${index}`, x: x + 100, y: y - 16, width: 79, height: 19 });
+        ctx.fillText(unavailable ? '—' : Math.abs(value) >= 10000 ? value.toExponential(1) : value.toFixed(3), x + 165, y);
+        regions.push({ name: `joint_${index}`, x: x + 95, y: y - 16, width: 72, height: 19 });
       }
       const entry = {
         kind: 'capture', wall_ms: Date.now(), performance_ms: performance.now(), snapshot,

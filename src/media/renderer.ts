@@ -12,11 +12,11 @@ import type { DecodedFrame } from "./types";
 
 /** Fixed presentation geometry, shared with independent screenshot decoders. */
 export const PRESENTATION_WIDTH = 1600;
-export const PRESENTATION_HEIGHT = 800;
+export const PRESENTATION_HEIGHT = 920;
 export const CANVAS_WIDTH = PRESENTATION_WIDTH;
 export const CANVAS_HEIGHT = PRESENTATION_HEIGHT;
 export const PRESENTATION_IMAGE_RECT = Object.freeze({ x: 16, y: 48, width: 768, height: 432 });
-export const PRESENTATION_HISTORY_RECT = Object.freeze({ x: 16, y: 568, width: 1568, height: 216 });
+export const PRESENTATION_HISTORY_RECT = Object.freeze({ x: 16, y: 568, width: 1568, height: 336 });
 export const PRESENTATION_GROUP_RECTS = Object.freeze({
   left: Object.freeze({ x: 800, y: 48, width: 384, height: 264 }),
   right: Object.freeze({ x: 1192, y: 48, width: 392, height: 264 }),
@@ -441,8 +441,8 @@ function drawJointPanel(ctx: CanvasRenderingContext2D, snapshot: FrameSnapshot, 
     label(ctx, `${group.collapsed ? "▸" : "▾"} ${group.label} · ${group.count}`, rect.x + 12, rect.y + 23, LIGHT.text, 17);
     if (group.collapsed) continue;
     label(ctx, "关节", rect.x + 12, rect.y + 46, LIGHT.muted, 14);
-    label(ctx, "数值", rect.x + 177, rect.y + 46, LIGHT.muted, 14, "right");
-    label(ctx, "单位", rect.x + 184, rect.y + 46, LIGHT.muted, 14);
+    label(ctx, "数值", rect.x + 165, rect.y + 46, LIGHT.muted, 14, "right");
+    label(ctx, "单位", rect.x + 181, rect.y + 46, LIGHT.muted, 14);
     label(ctx, "来源", rect.x + 237, rect.y + 46, LIGHT.muted, 14);
     label(ctx, "限位", rect.x + rect.width - 10, rect.y + 46, LIGHT.muted, 14, "right");
     for (const [offset, row] of group.rows.entries()) {
@@ -451,8 +451,8 @@ function drawJointPanel(ctx: CanvasRenderingContext2D, snapshot: FrameSnapshot, 
       const color = row.available ? LIGHT.text : LIGHT.missing;
       const limitColor = row.limitState === "exceeded" ? LIGHT.danger : row.limitState === "warning" ? LIGHT.warning : color;
       label(ctx, compactName(row.name), rect.x + 12, y, color, 16);
-      label(ctx, row.valueText, rect.x + 177, y, color, 16, "right");
-      label(ctx, row.unit, rect.x + 184, y, color, 16);
+      label(ctx, row.valueText, rect.x + 165, y, color, 16, "right");
+      label(ctx, row.unit, rect.x + 181, y, color, 16);
       ctx.font = "16px sans-serif"; ctx.fillStyle = color; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
       ctx.fillText(row.quality.text, rect.x + 237, y, 78);
       const flags = row.limitState === "exceeded" ? "越限" : row.limitState === "warning" ? "临界" : row.limitState === "unlimited" ? "∞" : row.limitState === "normal" ? "正常" : row.limitState === "unassessed" ? "未评估" : row.limitState === "unknown" ? "未知" : "—";
@@ -470,9 +470,9 @@ function drawHistory(ctx: CanvasRenderingContext2D, snapshot: FrameSnapshot, opt
   ctx.imageSmoothingEnabled = true; ctx.drawImage(options.historyCanvas!, rect.x, rect.y, rect.width, rect.height);
   if (snapshot.log_time_s >= range.from && snapshot.log_time_s <= range.to) {
     const cursor = rect.x + 60 + ((snapshot.log_time_s - range.from) / (range.to - range.from)) * 1488;
-    line(ctx, [[cursor, rect.y + 40], [cursor, rect.y + 186]], LIGHT.blue, 2);
-    label(ctx, `${snapshot.log_time_s.toFixed(3)} s`, Math.max(110, Math.min(1510, cursor)), rect.y + 210, LIGHT.blue, 14, "center");
-  } else label(ctx, "当前帧位于所选曲线范围外", 800, rect.y + 210, LIGHT.muted, 14, "center");
+    line(ctx, [[cursor, rect.y + 32], [cursor, rect.y + 300]], LIGHT.blue, 2);
+    label(ctx, `${snapshot.log_time_s.toFixed(3)} s`, Math.max(110, Math.min(1510, cursor)), rect.y + 330, LIGHT.blue, 14, "center");
+  } else label(ctx, "当前帧位于所选曲线范围外", 800, rect.y + 330, LIGHT.muted, 14, "center");
 }
 
 /** Paint an image and every visible reading from the same verified, frozen snapshot. */

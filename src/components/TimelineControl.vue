@@ -93,7 +93,7 @@ onBeforeUnmount(() => scheduler.dispose());
   min-width: 0;
   flex: 1;
   cursor: pointer;
-  accent-color: #59d5cf;
+  accent-color: #356fad;
 }
 .timeline-control input:disabled {
   cursor: default;
@@ -101,10 +101,10 @@ onBeforeUnmount(() => scheduler.dispose());
 .timeline-caption {
   white-space: nowrap;
   font-size: 12px;
-  color: #95a9bb;
+  color: #637b92;
 }
 .timeline-caption b {
-  color: #d7e4ed;
+  color: #24364a;
   font-variant-numeric: tabular-nums;
 }
 .timeline-duration {

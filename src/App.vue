@@ -1,19 +1,23 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import { NConfigProvider, NButton, NTag, NAlert, darkTheme } from "naive-ui";
+import { NConfigProvider, NButton, NTag, NAlert, NDrawer, NDrawerContent, NModal } from "naive-ui";
 import { createWorkbenchController, type MockBridge } from "./app/controller";
 import { useSessionStore } from "./stores/session";
 import { usePlaybackStore } from "./stores/playback";
 import { useTelemetryStore } from "./stores/telemetry";
 import { useUiStore } from "./stores/ui";
 import { SCENARIOS, type ScenarioId } from "./domain/types";
+import { PRESENTATION_GROUP_RECTS, PRESENTATION_WIDTH, PRESENTATION_HEIGHT } from "./media/renderer";
+import LogDetailsPanel from "./components/LogDetailsPanel.vue";
 import UploadPanel from "./components/UploadPanel.vue";
 import TimelineControl from "./components/TimelineControl.vue";
 import HistoryControls from "./components/HistoryControls.vue";
 import AnnotationPanel from "./components/AnnotationPanel.vue";
+import { useAnnotationStore } from "./stores/annotations";
 import { useHistoryStore } from "./stores/history";
 import { createHistoryChart } from "./media/historyChart";
 const history = useHistoryStore();
+const annotations = useAnnotationStore();
 const chart = createHistoryChart();
 
 const props = defineProps<{ runtime?: MockBridge }>();
@@ -34,9 +38,17 @@ const controller = createWorkbenchController({
       : undefined,
   }),
 });
-const seekTime = ref(0),
-  seekFrame = ref(0),
-  chartError = ref<string | null>(null),
+const importOpen = ref(false), detailsOpen = ref(false), closeOpen = ref(false), seekOpen = ref(false), channelOpen = ref(false), healthOpen = ref(false), annotationOpen = ref(false);
+const analysisTab = ref<"stages" | "limits" | "activity">("stages");
+const seekMode = ref<"time" | "frame">("time"), seekText = ref("0"), channelDraft = ref<string[]>([]);
+const activeDetails = computed(() => playback.getLogDetails(session.sid ?? "", playback.server?.log_id));
+const displayedDetails = computed(() => playback.getLogDetails(session.sid ?? "", telemetry.presented?.log_id));
+const candidateDetails = computed(() => playback.getLogDetails(session.sid ?? "", playback.uploaded?.log_id));
+const seekValid = computed(() => seekText.value.trim() !== "" && Number.isFinite(Number(seekText.value)) && Number(seekText.value) >= 0 && (seekMode.value === "time" || Number.isInteger(Number(seekText.value))));
+function submitSeek() { if (!canControl.value || busy.value || !seekValid.value) return; void controller.control("seek", seekMode.value === "time" ? {time_s: Number(seekText.value)} : {frame_index: Number(seekText.value)}); seekOpen.value = false; }
+function openChannels() { channelDraft.value = [...history.selected]; channelOpen.value = true; }
+function applyChannels() { history.setSelected(channelDraft.value); channelOpen.value = false; }
+const chartError = ref<string | null>(null),
   now = ref(Date.now());
 const ready = computed(() => session.workerPhase === "ready");
 const loaded = computed(
@@ -100,9 +112,9 @@ const scenarioHelp: Record<ScenarioId, string> = {
 };
 const themeOverrides = {
   common: {
-    primaryColor: "#59d5cf",
-    primaryColorHover: "#87e7df",
-    primaryColorPressed: "#35bcb8",
+    primaryColor: "#356fad",
+    primaryColorHover: "#528ac1",
+    primaryColorPressed: "#245789",
     borderRadius: "8px",
     fontFamily: 'Inter, "Noto Sans CJK SC", system-ui, sans-serif',
   },
@@ -164,418 +176,285 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <n-config-provider :theme="darkTheme" :theme-overrides="themeOverrides">
+  <n-config-provider :theme-overrides="themeOverrides">
     <div class="app-shell">
       <header class="topbar">
         <div class="brand">
-          <div class="brand-mark">R1</div>
+          <div class="brand-mark">R</div>
           <div>
             <h1>机器人日志回放</h1>
             <p>ROBOT REPLAY WORKSPACE</p>
           </div>
         </div>
-        <div class="top-status">
-          <n-tag
-            data-testid="mode-badge"
-            :type="runtime ? 'warning' : 'info'"
-            size="small"
-            :bordered="false"
-            >{{ runtime ? "MOCK · 合成数据" : "真实后端" }}</n-tag
-          ><span class="version">IsaacSim 6.2 · PhysX</span>
-        </div>
-        <section class="environment-controls">
-          <label class="field-label" for="scene">场景</label>
-          <select
-            id="scene"
-            v-model="session.sceneId"
-            :disabled="!!session.sid || busy"
-          >
-            <option v-if="!session.scenes.length" value="">等待场景列表</option>
-            <option
-              v-for="item in session.scenes"
-              :key="item.id"
-              :value="item.id"
-            >
-              {{ item.name }}
-            </option>
-          </select>
-          <label class="field-label" for="robot">机器人</label>
-          <select
-            id="robot"
-            v-model="session.robotId"
-            :disabled="!!session.sid || busy"
-          >
-            <option v-if="!session.robots.length" value="">
-              等待机器人列表
-            </option>
-            <option
-              v-for="item in session.robots"
-              :key="item.id"
-              :value="item.id"
-            >
-              {{ item.name }}
-            </option>
-          </select>
-
+        <n-tag data-testid="mode-badge" :type="runtime ? 'warning' : 'info'" size="small">{{ runtime ? 'MOCK · 合成数据' : '真实后端' }}</n-tag>
+        <n-button
+          data-testid="import-log"
+          type="primary"
+          size="small"
+          :disabled="!ready || !!ui.cleanupSessionId"
+          @click="importOpen = true">导入日志</n-button>
+      </header>
+      <div class="environment-toolbar">
+        <div class="environment-controls">
+          <label>场景 <select id="scene" v-model="session.sceneId" :disabled="!!session.sid || busy">
+              <option v-if="!session.scenes.length" value="">等待场景列表</option>
+              <option v-for="item in session.scenes" :key="item.id" :value="item.id">{{ item.name }}</option>
+            </select>
+          </label>
+          <label>机器人 <select id="robot" v-model="session.robotId" :disabled="!!session.sid || busy">
+              <option v-if="!session.robots.length" value="">等待机器人列表</option>
+              <option v-for="item in session.robots" :key="item.id" :value="item.id">{{ item.name }}</option>
+            </select>
+          </label>
           <n-button
             data-testid="create-session"
             type="primary"
-            block
-            :disabled="
-              !!session.sid ||
-              !!ui.cleanupSessionId ||
-              busy ||
-              !session.sceneId ||
-              !session.robotId
-            "
+            :disabled="!!session.sid || !!ui.cleanupSessionId || busy || !session.sceneId || !session.robotId"
             :loading="busy && !session.sid"
-            @click="controller.create"
-            >创建会话</n-button
-          >
-          <div class="session-row">
-            <span>工作线程</span
-            ><strong :class="{ danger: session.workerPhase === 'error' }">{{
-              phaseNames[session.workerPhase] ?? session.workerPhase
-            }}</strong>
-          </div>
+            @click="controller.create">创建会话</n-button>
+          <span class="worker-status">{{ phaseNames[session.workerPhase] ?? session.workerPhase }}</span>
           <n-button
             data-testid="close-session"
-            secondary
-            block
-            size="small"
-            :disabled="
-              (!session.sid && !ui.creating && !ui.cleanupSessionId) ||
-              (busy && !!ui.cleanupSessionId)
-            "
-            @click="controller.close"
-            >{{
-              session.sid
-                ? "关闭会话"
-                : ui.cleanupSessionId
-                  ? "重试关闭"
-                  : "取消创建"
-            }}</n-button
-          >
-        </section>
-      </header>
-      <div class="workspace-heading">
-        <div>
-          <span class="eyebrow">运动回放</span>
-          <h2>从日志时刻，看见机器人状态</h2>
+            :disabled="(!session.sid && !ui.creating && !ui.cleanupSessionId) || (busy && !!ui.cleanupSessionId)"
+            @click="session.sid ? closeOpen = true : controller.close()">{{ session.sid ? '关闭会话' : ui.cleanupSessionId ? '重试关闭' : '取消创建' }}</n-button>
         </div>
-        <span class="connection"
-          ><i :class="['dot', { online: session.socket.state === 'open' }]" />{{
-            session.socket.state === "open" ? "数据连接正常" : "等待数据连接"
-          }}</span
-        >
+        <div class="toolbar-actions">
+          <span>{{ activeDetails?.fileName ?? (playback.server?.log_id ? playback.server.log_id : '尚未激活日志') }}</span>
+          <n-button
+            data-testid="open-log-details"
+            size="small"
+            :disabled="!playback.server?.log_id"
+            @click="detailsOpen = true">日志详情</n-button>
+          <span class="sync-status">{{ statusText }}</span>
+          <span class="connection">
+            <i
+              :class="['dot', { online: session.socket.state === 'open' }]" />{{ session.socket.state === 'open' ? '数据连接正常' : '等待数据连接' }}</span>
+        </div>
       </div>
-
       <main class="workspace">
-        <aside class="setup-pane">
-          <UploadPanel
-            :ready="ready && !ui.creating"
-            :busy="ui.uploading"
-            :mock="!!runtime"
-            :uploaded="playback.uploaded"
-            :active-log-id="playback.server?.log_id ?? null"
-            :issues="ui.uploadIssues"
-            :max-bytes="controller.maxUploadBytes"
-            @upload="controller.loadFile"
-            @activate="(logId) => controller.control('load', { log_id: logId })"
-            @demo="controller.loadDemo"
-          />
-          <section v-if="runtime" class="card scenario-card">
-            <label class="field-label" for="scenario">演示场景</label
-            ><select
-              id="scenario"
-              data-testid="scenario-select"
-              :value="ui.scenario"
-              @change="scenario"
-            >
-              <option v-for="item in SCENARIOS" :key="item.id" :value="item.id">
-                {{ item.label }}
-              </option>
-            </select>
-            <p>{{ scenarioHelp[ui.scenario] }}</p>
-          </section>
-        </aside>
-
         <section class="main-pane">
-          <n-alert
-            v-if="ui.error"
-            data-testid="error-message"
-            type="error"
-            :show-icon="false"
-            class="error-banner"
-            >{{ ui.error }}</n-alert
-          >
-          <div class="card stage-card">
-            <div class="stage-toolbar">
-              <div>
-                <h3>同步回放</h3>
-                <span>{{
-                  runtime
-                    ? "机器人结构示意 · 20 Hz 合成帧序列"
-                    : "服务器渲染画面"
-                }}</span>
-              </div>
-              <n-tag
-                :type="
-                  session.workerPhase === 'error'
-                    ? 'error'
-                    : displayed
-                      ? 'success'
-                      : 'default'
-                "
-                :bordered="false"
-                size="small"
-                >{{ statusText }}</n-tag
-              >
-            </div>
+          <n-alert v-if="ui.error" data-testid="error-message" type="error" :show-icon="false" class="error-banner">{{ ui.error }}</n-alert>
+          <section class="card stage-card">
+            <p
+              v-if="displayed && playback.server?.log_id && displayed.log_id !== playback.server.log_id"
+              class="hold-notice"
+              data-testid="previous-frame-notice">当前画面仍为 {{ displayedDetails?.fileName ?? displayed.log_id }}，等待新日志首帧。</p>
             <div class="stage-scroll">
-              <canvas
-                ref="canvas"
-                data-testid="paired-canvas"
-                width="1280"
-                height="720"
-                aria-label="同帧呈现的机器人画面、28关节、底盘及日志进度"
-              />
-            </div>
-            <div class="group-controls" aria-label="关节分组">
-              <button
-                v-for="group in groups"
-                :key="group.id"
-                :data-testid="`group-${group.id}`"
-                :aria-expanded="!ui.collapsedGroups.includes(group.id)"
-                @click="toggleGroup(group.id)"
-              >
-                {{ ui.collapsedGroups.includes(group.id) ? "＋" : "－" }}
-                {{ group.label }}
-              </button>
-              <span>有限位进度 / 无限位 / 来源标记</span>
+              <div class="canvas-wrap">
+                <canvas ref="canvas" data-testid="paired-canvas" :width="PRESENTATION_WIDTH" :height="PRESENTATION_HEIGHT" aria-label="同帧呈现的机器人画面、28关节、底盘及日志进度" />
+                <button
+                  v-for="group in groups"
+                  :key="group.id"
+                  class="group-overlay"
+                  :style="{left: (PRESENTATION_GROUP_RECTS[group.id as keyof typeof PRESENTATION_GROUP_RECTS].x / PRESENTATION_WIDTH * 100) + '%', top: (PRESENTATION_GROUP_RECTS[group.id as keyof typeof PRESENTATION_GROUP_RECTS].y / PRESENTATION_HEIGHT * 100) + '%', width: (PRESENTATION_GROUP_RECTS[group.id as keyof typeof PRESENTATION_GROUP_RECTS].width / PRESENTATION_WIDTH * 100) + '%', height: (30 / PRESENTATION_HEIGHT * 100) + '%'}"
+                  :data-testid="`group-${group.id}`"
+                  :aria-label="`${group.label} ${ui.collapsedGroups.includes(group.id) ? '展开' : '收起'}`"
+                  :aria-expanded="!ui.collapsedGroups.includes(group.id)"
+                  @click="toggleGroup(group.id)">
+                  <span>{{ ui.collapsedGroups.includes(group.id) ? '＋' : '－' }}</span>
+                </button>
+                <div class="channel-toolbar" :style="{ top: (530 / PRESENTATION_HEIGHT * 100) + '%', height: (34 / PRESENTATION_HEIGHT * 100) + '%' }">
+                  <strong>历史曲线</strong>
+                  <span
+                    v-for="name in history.selected"
+                    :key="name"
+                    class="channel-chip">{{ name }} <button
+                    :aria-label="`移除 ${name}`"
+                    @click="history.setSelected(history.selected.filter(n => n !== name))">×</button>
+                  </span>
+                  <button
+                    data-testid="open-channel-picker"
+                    :disabled="!history.channels.length"
+                    @click="openChannels">选择通道 ({{ history.selected.length }}/4)</button>
+                  <span class="legend">黄色 临界 · 红色 越限 · 缺失为断点</span>
+                </div>
+              </div>
             </div>
             <div class="transport">
-              <TimelineControl
-                :duration="playback.server?.duration_s ?? 0"
-                :presented-time="displayed?.log_time_s ?? 0"
-                :disabled="!canControl"
-                :context="`${session.sid}:${playback.server?.log_id}:${ui.intentRevision}`"
-                @seek="controller.seek"
-              />
-              <p v-if="pending" class="pending-note">
-                {{ pendingText }}
-              </p>
               <div class="control-row">
                 <div class="play-controls">
                   <n-button
                     data-testid="play"
                     type="primary"
                     :disabled="!canPlay"
-                    @click="controller.control('play')"
-                    >{{
-                      playback.server?.state === "ended"
-                        ? "▶ 从头重播"
-                        : "▶ 播放"
-                    }}</n-button
-                  ><n-button
-                    data-testid="pause"
-                    secondary
-                    :disabled="!canPause"
-                    @click="controller.control('pause')"
-                    >暂停</n-button
-                  ><n-button
-                    data-testid="stop"
-                    secondary
-                    :disabled="!canControl || busy"
-                    @click="controller.control('stop')"
-                    >停止归零</n-button
-                  ><n-button
+                    @click="controller.control('play')">{{ playback.server?.state === 'ended' ? '▶ 从头重播' : '▶ 播放' }}</n-button>
+                  <n-button data-testid="pause" :disabled="!canPause" @click="controller.control('pause')">暂停</n-button>
+                  <n-button data-testid="stop" :disabled="!canControl || busy" @click="controller.control('stop')">停止归零</n-button>
+                  <n-button
                     data-testid="step-backward"
-                    secondary
                     :disabled="!canControl || busy"
-                    title="上一原采样点"
-                    @click="
-                      controller.control('step', { direction: 'backward' })
-                    "
-                    >后退一帧</n-button
-                  ><n-button
+                    title="上一原采样点，会暂停"
+                    @click="controller.control('step', {direction:'backward'})">上一原采样点</n-button>
+                  <n-button
                     data-testid="step-forward"
-                    secondary
                     :disabled="!canControl || busy"
-                    title="下一原采样点"
-                    @click="
-                      controller.control('step', { direction: 'forward' })
-                    "
-                    >前进一帧</n-button
-                  >
+                    title="下一原采样点，会暂停"
+                    @click="controller.control('step', {direction:'forward'})">下一原采样点</n-button>
                 </div>
+                <TimelineControl
+                  :duration="playback.server?.duration_s ?? 0"
+                  :presented-time="displayed?.log_time_s ?? 0"
+                  :disabled="!canControl || busy"
+                  :context="`${session.sid}:${playback.server?.log_id}:${ui.intentRevision}`"
+                  @seek="controller.seek" />
                 <div class="position-controls">
-                  <label
-                    >倍速<select
-                      data-testid="speed-select"
-                      aria-label="播放倍速"
-                      :value="playback.server?.speed ?? 1"
-                      :disabled="!canControl || busy"
-                      @change="changeSpeed"
-                    >
-                      <option :value="0.1">0.1×</option>
-                      <option :value="0.25">0.25×</option>
-                      <option :value="0.5">0.5×</option>
-                      <option :value="1">1×</option>
-                      <option :value="2">2×</option>
-                      <option :value="4">4×</option>
-                      <option :value="10">10×</option>
-                    </select></label
-                  >
-                  <div class="seek-field">
-                    <input
-                      v-model.number="seekTime"
-                      data-testid="seek-input"
-                      aria-label="定位秒数"
-                      type="number"
-                      min="0"
-                      :max="playback.server?.duration_s || 12"
-                      step="0.001"
-                      :disabled="!loaded || !ready"
-                      @keydown.enter="
-                        controller.control('seek', { time_s: seekTime })
-                      "
-                    /><span>s</span>
-                  </div>
-                  <n-button
-                    data-testid="seek-submit"
-                    secondary
+                  <label>倍速 <select
+                    data-testid="speed-select"
+                    aria-label="播放倍速"
+                    :value="playback.server?.speed ?? 1"
                     :disabled="!canControl || busy"
-                    @click="controller.control('seek', { time_s: seekTime })"
-                    >定位秒数</n-button
-                  >
-                  <div class="seek-field">
-                    <input
-                      v-model.number="seekFrame"
-                      data-testid="frame-input"
-                      aria-label="原始采样帧序号（从0开始）"
-                      type="number"
-                      min="0"
-                      step="1"
-                      :disabled="!canControl"
-                      @keydown.enter="
-                        controller.control('seek', { frame_index: seekFrame })
-                      "
-                    /><span>帧</span>
-                  </div>
+                    @change="changeSpeed">
+                      <option v-for="speed in [0.1,0.25,0.5,1,2,4,10]" :key="speed" :value="speed">{{ speed }}×</option>
+                    </select>
+                  </label>
                   <n-button
-                    data-testid="frame-submit"
-                    secondary
+                    data-testid="open-seek"
                     :disabled="!canControl || busy"
-                    @click="
-                      controller.control('seek', { frame_index: seekFrame })
-                    "
-                    >定位帧</n-button
-                  >
+                    @click="seekMode = 'time'; seekOpen = true">精确定位</n-button>
                 </div>
               </div>
+              <p v-if="pending" class="pending-note">{{ pendingText }}</p>
             </div>
-          </div>
-          <n-alert v-if="chartError" type="error" class="error-banner"
-            >历史曲线绘制失败：{{ chartError }}</n-alert
-          >
-          <HistoryControls :disabled="!canControl" @seek="controller.seek" />
-          <AnnotationPanel :disabled="!canControl" @seek="controller.seek" />
-          <div class="bottom-row">
-            <div class="card session-summary">
-              <h3>当前会话</h3>
-              <div class="summary-metrics">
-                <div>
-                  <span>数据来源</span
-                  ><strong>{{ runtime ? "合成数据" : "真实后端" }}</strong>
-                </div>
-                <div>
-                  <span>配对呈现</span
-                  ><strong>{{ telemetry.count }} <small>帧</small></strong>
-                </div>
-                <div>
-                  <span>上一帧共同延迟</span
-                  ><strong
-                    >{{ latency === null ? "—" : latency.toFixed(0) }}
-                    <small>ms</small></strong
-                  >
-                </div>
+          </section>
+          <n-alert v-if="chartError" type="error">历史曲线绘制失败：{{ chartError }}</n-alert>
+          <nav class="analysis-tabs" aria-label="回放分析">
+            <button :aria-pressed="analysisTab === 'stages'" @click="analysisTab = 'stages'">阶段与来源</button>
+            <button data-testid="limits-tab" :aria-pressed="analysisTab === 'limits'" @click="analysisTab = 'limits'">限位事件</button>
+            <button :aria-pressed="analysisTab === 'activity'" @click="analysisTab = 'activity'">运行记录</button>
+          </nav>
+          <section v-show="analysisTab === 'stages'" class="card stage-summary">
+            <div>
+              <h3>当前阶段</h3>
+              <p v-if="annotations.currentData?.alignment === 'reference_only'">仅供历史来源参考，未对齐当前运行。</p>
+              <p
+                v-else-if="annotations.currentSegments.length">{{ annotations.currentSegments.map(segment => segment.label).join(' · ') }}</p>
+              <p v-else>当前已呈现时刻没有对应阶段。</p>
+              <small>来源 {{ annotations.currentData?.source_id ?? '未提供' }} · {{ annotations.currentData?.alignment ?? '等待对应日志画面' }}</small>
+              <div v-if="annotations.currentData?.alignment === 'source_frames' && annotations.currentData.segments.length" class="phase-timeline" aria-label="源记录阶段">
+                <button v-for="segment in annotations.currentData.segments" :key="segment.id" :aria-current="annotations.currentSegments.some(current => current.id === segment.id) ? 'true' : undefined" :disabled="!canControl || busy || !displayed || segment.start_s > displayed.duration_s" :title="`${segment.start_s.toFixed(3)}–${segment.end_s.toFixed(3)} s`" @click="controller.seek(segment.start_s)">{{ segment.label }} <small>{{ segment.start_s.toFixed(3) }} s</small></button>
               </div>
-              <div class="health-metrics" data-testid="health-panel">
-                <span
-                  >系统实时 ·
-                  {{
-                    session.health?.worker_alive
-                      ? "Worker 存活"
-                      : "等待健康信息"
-                  }}</span
-                >
-                <span
-                  >CPU
-                  {{ session.health?.cpu_percent?.toFixed(1) ?? "—" }}%</span
-                >
-                <span
-                  >内存
-                  {{
-                    session.health?.memory_bytes == null
-                      ? "—"
-                      : (session.health.memory_bytes / 1048576).toFixed(1)
-                  }}
-                  MiB</span
-                >
-                <span
-                  >GPU
-                  {{ session.health?.gpu_percent?.toFixed(1) ?? "—" }}%</span
-                >
-                <span
-                  >渲染
-                  {{ session.health?.render_fps?.toFixed(1) ?? "—" }} fps</span
-                >
-                <span>{{
-                  session.healthWallTime
-                    ? new Date(session.healthWallTime).toLocaleTimeString(
-                        "zh-CN",
-                        { hour12: false },
-                      )
-                    : "—"
-                }}</span>
-              </div>
-              <p class="subtle">
-                {{
-                  session.sid
-                    ? ui.mediaStatus
-                    : "创建会话后载入日志，画面与对应数据将一起呈现。"
-                }}
-              </p>
             </div>
-            <div class="card activity-card">
-              <h3>运行记录</h3>
-              <ol v-if="ui.activity.length">
-                <li
-                  v-for="(item, i) in ui.activity.slice(0, 3)"
-                  :key="`${item.at}-${i}`"
-                >
-                  <time>{{
-                    new Date(item.at).toLocaleTimeString("zh-CN", {
-                      hour12: false,
-                    })
-                  }}</time
-                  ><span>{{ item.message }}</span>
-                </li>
-              </ol>
-              <p v-else class="subtle">环境与播放事件会显示在这里。</p>
-            </div>
-          </div>
+            <n-button data-testid="open-annotations" @click="annotationOpen = true">全部阶段与来源</n-button>
+          </section>
+          <HistoryControls v-show="analysisTab === 'limits'" :disabled="!canControl || busy" @seek="controller.seek" />
+          <section v-show="analysisTab === 'activity'" class="card activity-card">
+            <h3>运行记录</h3>
+            <ol v-if="ui.activity.length">
+              <li v-for="(item,i) in ui.activity" :key="`${item.at}-${i}`">
+                <time>{{ new Date(item.at).toLocaleTimeString('zh-CN', {hour12:false}) }}</time> {{ item.message }}</li>
+            </ol>
+            <p v-else class="subtle">环境与播放事件会显示在这里。</p>
+          </section>
+          <section v-if="runtime" class="card scenario-card">
+            <label for="scenario">Mock 专属 · 演示场景</label>
+            <select id="scenario" data-testid="scenario-select" :value="ui.scenario" @change="scenario">
+              <option v-for="item in SCENARIOS" :key="item.id" :value="item.id">{{ item.label }}</option>
+            </select>
+            <p>{{ scenarioHelp[ui.scenario] }}</p>
+          </section>
         </section>
       </main>
-      <footer>
-        <span>单会话工作台 · R1 Pro</span
-        ><span>{{
-          runtime
-            ? "Mock 演示不代表 IsaacSim 或真机日志已接入。"
-            : "真实仿真回放 · 图像与数据通过同帧核验后共同呈现。"
-        }}</span>
+      <footer data-testid="health-panel">
+        <span>系统健康 · {{ session.health?.worker_alive == null ? '等待健康信息' : session.health.worker_alive ? 'Worker 存活' : 'Worker 未运行' }} · CPU {{ session.health?.cpu_percent == null ? '—' : session.health.cpu_percent.toFixed(1) + '%' }} · 采集端渲染 {{ session.health?.render_fps?.toFixed(1) ?? '—' }} fps · 配对 {{ telemetry.count }} · 延迟 {{ latency === null ? '—' : latency.toFixed(0) }} ms</span>
+        <button @click="healthOpen = true">健康详情</button>
+        <span>IsaacSim 6.2 · PhysX</span>
       </footer>
-    </div>
-  </n-config-provider>
-</template>
+      <n-drawer v-model:show="importOpen" :width="520" display-directive="show" placement="right">
+        <n-drawer-content title="导入日志" closable>
+          <template #header>导入日志 <button data-testid="close-import" @click="importOpen = false">关闭</button>
+          </template>
+          <div data-testid="import-drawer">
+            <UploadPanel
+              :key="session.sid ?? 'none'"
+              :ready="ready && !ui.creating"
+              :busy="ui.uploading"
+              :mock="!!runtime"
+              :uploaded="playback.uploaded"
+              :active-log-id="playback.server?.log_id ?? null"
+              :issues="ui.uploadIssues"
+              :max-bytes="controller.maxUploadBytes"
+              :candidate-details="candidateDetails"
+              :active-details="activeDetails"
+              :activation-busy="busy"
+              :can-activate="ready && session.socket.state === 'open' && !busy"
+              @upload="controller.loadFile"
+              @activate="(logId) => controller.control('load', {log_id: logId})"
+              @demo="controller.loadDemo" />
+            </div>
+          </n-drawer-content>
+        </n-drawer>
+        <n-drawer v-model:show="annotationOpen" :width="600" placement="right">
+          <n-drawer-content closable>
+            <template #header>全部阶段与来源 <button data-testid="close-annotations" @click="annotationOpen = false">关闭</button>
+            </template>
+            <AnnotationPanel :disabled="!canControl || busy" @seek="controller.seek" />
+          </n-drawer-content>
+        </n-drawer>
+        <n-drawer v-model:show="detailsOpen" :width="520" placement="right">
+          <n-drawer-content title="日志详情" closable>
+            <template #header>日志详情 <button data-testid="close-log-details" @click="detailsOpen = false">关闭</button>
+            </template>
+            <LogDetailsPanel :details="activeDetails" :log-id="playback.server?.log_id ?? null" role="active" />
+          </n-drawer-content>
+        </n-drawer>
+        <n-modal v-model:show="closeOpen" preset="card" title="关闭会话" class="dialog">
+          <div data-testid="close-confirmation">
+            <p>关闭将结束环境并删除本会话的上传副本，本地原文件会保留。</p>
+            <div class="dialog-actions">
+              <n-button data-testid="cancel-close-session" @click="closeOpen = false">取消</n-button>
+              <n-button data-testid="confirm-close-session" type="primary" @click="closeOpen = false; controller.close()">确认关闭</n-button>
+            </div>
+          </div>
+        </n-modal>
+        <n-modal v-model:show="seekOpen" preset="card" title="精确定位" class="dialog">
+          <div class="dialog-tabs">
+            <button @click="seekMode = 'time'">按秒定位</button>
+            <button @click="seekMode = 'frame'">按原采样帧定位</button>
+          </div>
+          <label
+            v-if="seekMode === 'time'">秒数（时长 {{ playback.server?.duration_s ?? 0 }} s）<input
+            v-model="seekText"
+            data-testid="seek-input"
+            type="number" min="0" step="any"
+            @keydown.enter="submitSeek" />
+          </label>
+          <label v-else>原始采样点序号，从 0 开始<input
+            v-model="seekText"
+            data-testid="frame-input"
+            type="number" min="0" step="1"
+            @keydown.enter="submitSeek" />
+          </label>
+          <p v-if="!seekValid" role="alert">请输入有效的非负{{ seekMode === 'frame' ? '整数' : '数值' }}。</p>
+          <div class="dialog-actions">
+            <n-button @click="seekOpen = false">取消</n-button>
+            <n-button
+              :data-testid="seekMode === 'time' ? 'seek-submit' : 'frame-submit'"
+              type="primary"
+              :disabled="!seekValid || !canControl || busy"
+              @click="submitSeek">定位</n-button>
+          </div>
+        </n-modal>
+        <n-modal v-model:show="channelOpen" preset="card" title="选择曲线通道" class="dialog">
+          <p>已选 {{ channelDraft.length }} / 4；选择只影响历史展示。</p>
+          <div class="channel-options">
+            <label v-for="channel in history.channels" :key="channel.name">
+              <input
+                v-model="channelDraft"
+                type="checkbox"
+                :value="channel.name"
+                :disabled="channelDraft.length >= 4 && !channelDraft.includes(channel.name)" />{{ channel.name }} · {{ channel.unit }} · {{ channel.quality.origin }}</label>
+          </div>
+          <div class="dialog-actions">
+            <n-button data-testid="cancel-channels" @click="channelOpen = false">取消</n-button>
+            <n-button data-testid="apply-channels" type="primary" @click="applyChannels">应用</n-button>
+          </div>
+        </n-modal>
+        <n-modal v-model:show="healthOpen" preset="card" title="系统健康" class="dialog">
+          <p>Worker：{{ session.health?.worker_alive == null ? '未提供' : session.health.worker_alive ? '存活' : '未运行' }}</p>
+          <p>采集端渲染 FPS {{ session.health?.render_fps?.toFixed(1) ?? '—' }} · CPU {{ session.health?.cpu_percent == null ? '—' : session.health.cpu_percent.toFixed(1) + '%' }} · 配对 {{ telemetry.count }} · 延迟 {{ latency?.toFixed(0) ?? '—' }} ms</p>
+          <p>CPU {{ session.health?.cpu_percent == null ? '—' : session.health.cpu_percent.toFixed(1) + '%' }} · 内存 {{ session.health?.memory_bytes == null ? '—' : (session.health.memory_bytes / 1048576).toFixed(1) }} MiB · GPU {{ session.health?.gpu_percent == null ? '—' : session.health.gpu_percent.toFixed(1) + '%' }}</p>
+          <p>健康信息更新时间：{{ session.healthWallTime ? new Date(session.healthWallTime).toLocaleTimeString('zh-CN', {hour12:false}) : '—' }}</p>
+        </n-modal>
+      </div>
+    </n-config-provider>
+  </template>

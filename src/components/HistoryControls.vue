@@ -1,16 +1,8 @@
 <script setup lang="ts">
-import { computed } from "vue";
 import { useHistoryStore } from "../stores/history";
 const history = useHistoryStore();
 defineProps<{ disabled?: boolean }>();
 const emit = defineEmits<{ selectionChanged: []; seek: [time: number] }>();
-const selection = computed({
-  get: () => history.selected,
-  set: (names: string[]) => {
-    history.setSelected(names);
-    emit("selectionChanged");
-  },
-});
 </script>
 <template>
   <section class="history-controls" aria-label="历史曲线与事件">
@@ -18,36 +10,6 @@ const selection = computed({
     <p>
       曲线为完整日志历史；当前时间游标随实际画面更新。黄色区间接近限位，红色区间超限。
     </p>
-    <label
-      >曲线通道（最多 4 个，Ctrl / ⌘ 多选；先取消已选项可更换通道）
-      <select
-        data-testid="channel-select"
-        multiple
-        v-model="selection"
-        :disabled="!history.channels.length"
-      >
-        <option
-          v-for="channel in history.channels"
-          :key="channel.name"
-          :value="channel.name"
-          :disabled="
-            history.selected.length >= 4 &&
-            !history.selected.includes(channel.name)
-          "
-        >
-          {{ channel.name }} · {{ channel.unit }} ·
-          {{
-            channel.quality.origin === "missing"
-              ? "缺失"
-              : channel.quality.origin === "derived"
-                ? "推导"
-                : channel.quality.origin === "commanded"
-                  ? "控制指令"
-                  : "实际反馈"
-          }}
-        </option>
-      </select>
-    </label>
     <p v-if="history.loading" role="status">正在加载历史数据…</p>
     <p v-else-if="history.error" role="alert">{{ history.error }}</p>
     <p v-else-if="!history.logId">激活日志后可查看曲线和预扫描限位事件。</p>
@@ -113,7 +75,7 @@ const selection = computed({
 }
 .history-controls p {
   font-size: 12px;
-  color: #94a9c0;
+  color: #637b92;
   margin: 0;
   line-height: 1.5;
 }
@@ -123,10 +85,10 @@ const selection = computed({
   font-size: 12px;
 }
 .history-controls select {
-  background: #122033;
-  border: 1px solid #354a63;
+  background: #f3f7fb;
+  border: 1px solid #cbd9e6;
   border-radius: 5px;
-  color: #dce8f4;
+  color: #24364a;
   padding: 6px;
   min-width: 0;
 }
@@ -151,7 +113,7 @@ const selection = computed({
 .event-list li {
   padding: 6px;
   border-left: 2px solid #71849a;
-  background: #122033;
+  background: #f3f7fb;
   font-size: 11px;
 }
 .event-list li[data-severity="error"] {
@@ -164,14 +126,14 @@ const selection = computed({
   display: block;
   border: 0;
   background: transparent;
-  color: #83d7ff;
+  color: #356fad;
   text-align: left;
   padding: 0 0 4px;
   cursor: pointer;
   font-size: 11px;
 }
 .event-list span {
-  color: #a8bacd;
+  color: #58718a;
   overflow-wrap: anywhere;
 }
 </style>

@@ -166,12 +166,12 @@ export async function readPair(page: Page, expectedLayout?: { sourceWidth: numbe
     // extra digits cannot pass merely because the diagnostic value is correct.
     const expectedCanvas = document.createElement("canvas");
     expectedCanvas.width = 1600;
-    expectedCanvas.height = 800;
+    expectedCanvas.height = 920;
     const expected = expectedCanvas.getContext("2d", {
       willReadFrequently: true,
     })!;
     expected.fillStyle = "#f3f6fa";
-    expected.fillRect(0, 0, 1600, 800);
+    expected.fillRect(0, 0, 1600, 920);
     expected.fillStyle = "#ffffff";
     expected.fillRect(16, 488, 768, 42);
     expected.textBaseline = "alphabetic";
@@ -231,8 +231,8 @@ export async function readPair(page: Page, expectedLayout?: { sourceWidth: numbe
       expected.textAlign = "right";
       expected.font = "16px ui-monospace, SFMono-Regular, Menlo, monospace";
       const value = snapshot.joints[index]!;
-      expected.fillText(!quality.valid || quality.origin === "missing" ? "—" : Math.abs(value) >= 10000 ? value.toExponential(1) : value.toFixed(3), x + 177, y);
-      return mismatches(x + 100, y - 16, 79, 19);
+      expected.fillText(!quality.valid || quality.origin === "missing" ? "—" : Math.abs(value) >= 10000 ? value.toExponential(1) : value.toFixed(3), x + 165, y);
+      return mismatches(x + 95, y - 16, 72, 19);
     });
     return {
       snapshot,
@@ -256,7 +256,7 @@ export async function readPair(page: Page, expectedLayout?: { sourceWidth: numbe
 
 export function assertPair(sample: PairSample, sid?: string): void {
   const { snapshot, stamp, sync, source } = sample;
-  expect(sample.canvas).toEqual({ width: 1600, height: 800 });
+  expect(sample.canvas).toEqual({ width: 1600, height: 920 });
   expect(
     stamp.confident,
     "All 64 stamp pixels must have readable red/green contrast",
@@ -399,7 +399,10 @@ export async function createReadySession(page: Page): Promise<string> {
 }
 
 export async function loadDemo(page: Page): Promise<PairSample> {
+  await page.getByTestId("import-log").click();
+  if (await page.getByTestId("upload-reconfigure").isVisible()) await page.getByTestId("upload-reconfigure").click();
   await page.getByTestId("demo-load").click();
+  await page.getByTestId("close-import").click();
   return waitPair(
     page,
     ({ snapshot }) => snapshot.state === "ready" && snapshot.log_time_s === 0,
@@ -408,6 +411,7 @@ export async function loadDemo(page: Page): Promise<PairSample> {
 
 export async function seek(page: Page, time: number): Promise<PairSample> {
   const before = await diagnostics(page);
+  await page.getByTestId("open-seek").click();
   await page.getByTestId("seek-input").fill(String(time));
   await page.getByTestId("seek-submit").click();
   return waitPair(

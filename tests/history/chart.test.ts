@@ -40,3 +40,11 @@ it("can be created and disposed before a browser canvas exists", () => {
   chart.dispose();
   expect(chart.getCanvas()).toBeNull();
 });
+it('gives four independently labelled tracks enough height and readable axes', () => {
+  const data = curve();
+  data.series = [data.series[0]!, data.series[1]!, { ...data.series[0]!, channel: 'c' }, { ...data.series[1]!, channel: 'd' }];
+  const option = historyChartOption(data, ['a', 'b', 'c', 'd']);
+  expect((option.grid as any[]).map(grid => grid.height)).toEqual([52, 52, 52, 52]);
+  expect((option.yAxis as any[]).every(axis => axis.axisLabel.fontSize >= 15 && axis.nameTextStyle.fontSize >= 15)).toBe(true);
+  expect((option.xAxis as any[]).at(-1).axisLabel.fontSize).toBeGreaterThanOrEqual(15);
+});

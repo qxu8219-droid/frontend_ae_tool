@@ -35,7 +35,7 @@ export default defineConfig({
   projects: [
     {
       name: "mock",
-      testMatch: ["replay.spec.ts", "workbench.spec.ts"],
+      testMatch: ["replay.spec.ts", "workbench.spec.ts", "light-workbench.spec.ts"],
       use: { baseURL: "http://127.0.0.1:5183" },
     },
     ...(includeReal

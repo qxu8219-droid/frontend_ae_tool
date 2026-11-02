@@ -83,16 +83,16 @@ function seek(time: number | null) {
 <style scoped>
 .annotation-panel { padding: 20px; }
 .annotation-heading { display: flex; justify-content: space-between; gap: 16px; align-items: center; }
-.annotation-heading span, .annotation-source { color: #93a6bd; font-size: 12px; }
+.annotation-heading span, .annotation-source { color: #637b92; font-size: 12px; }
 .annotation-source code, pre { overflow-wrap: anywhere; white-space: pre-wrap; }
-.annotation-assumptions { margin: 14px 0; padding: 12px 14px; border-left: 3px solid #f2bd63; background: #26231c; color: #f2d299; }
+.annotation-assumptions { margin: 14px 0; padding: 12px 14px; border-left: 3px solid #f2bd63; background: #fff8eb; color: #805c24; }
 .annotation-assumptions ul { margin-bottom: 0; padding-left: 20px; }
-.annotation-segment { display: grid; gap: 5px; border: 1px solid #334252; border-radius: 8px; padding: 12px; margin: 10px 0; }
-.annotation-segment span, .annotation-history span { font-size: 12px; color: #b4c0cf; }
+.annotation-segment { display: grid; gap: 5px; border: 1px solid #d7e2ec; border-radius: 8px; padding: 12px; margin: 10px 0; }
+.annotation-segment span, .annotation-history span { font-size: 12px; color: #637b92; }
 .annotation-history { margin-top: 14px; }
 .annotation-history li { margin: 10px 0; }
 .annotation-history li > span { display: block; margin-top: 4px; }
-.annotation-history button { border: 1px solid #334252; background: #182638; color: #d8e8f4; border-radius: 5px; padding: 5px 8px; cursor: pointer; }
+.annotation-history button { border: 1px solid #d7e2ec; background: #f3f7fb; color: #356fad; border-radius: 5px; padding: 5px 8px; cursor: pointer; }
 .annotation-history button:disabled { cursor: default; opacity: .6; }
 summary { cursor: pointer; }
 </style>

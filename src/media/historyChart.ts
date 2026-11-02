@@ -2,12 +2,12 @@ import type { EChartsCoreOption, ECharts } from "echarts/core";
 import type { CurveResponse } from "../domain/types";
 
 export const CHART_WIDTH = 1568,
-  CHART_HEIGHT = 216;
+  CHART_HEIGHT = 336;
 export const CHART_PLOT = Object.freeze({
   left: 60,
   right: 20,
-  top: 40,
-  bottom: 30,
+  top: 32,
+  bottom: 36,
 });
 export function timeToChartX(time: number, from: number, to: number) {
   const ratio =
@@ -38,9 +38,7 @@ export function historyChartOption(
     backgroundColor: "#ffffff",
     textStyle: { color: "#60748c", fontFamily: "sans-serif" },
     title: {
-      text: series.length
-        ? "日志全量历史 · 当前帧游标随画面呈现"
-        : "选择通道以查看历史曲线",
+      text: series.length ? "" : "选择通道以查看历史曲线",
       left: 16,
       top: 8,
       textStyle: { fontSize: 13, fontWeight: "normal", color: "#18304e" },
@@ -59,7 +57,7 @@ export function historyChartOption(
       max: curve.to_s,
       axisLabel: {
         show: i === count - 1,
-        fontSize: 10,
+        fontSize: 15,
         formatter: "{value} s",
       },
       axisTick: { show: false },
@@ -72,10 +70,10 @@ export function historyChartOption(
       name: `${item.channel} [${item.unit}]`,
       nameLocation: "end",
       nameGap: 3,
-      nameTextStyle: { align: "left", fontSize: 10, color: colors[i] },
+      nameTextStyle: { align: "left", fontSize: 15, color: colors[i] },
       scale: true,
       axisLabel: {
-        fontSize: 9,
+        fontSize: 15,
         formatter: (value: number) =>
           Math.abs(value) >= 1000
             ? value.toExponential(0)

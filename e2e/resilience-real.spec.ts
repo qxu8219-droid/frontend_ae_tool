@@ -85,7 +85,7 @@ test('T17 actual B041 resilience matrix or bounded 30 minute playback soak', asy
   async function createAndLoad(label: string) {
     await progress(label + '-creating');
     await expect(page.getByTestId('create-session')).toBeEnabled(); await page.getByTestId('create-session').click();
-    await expect(page.getByTestId('choose-file')).toBeEnabled({ timeout: 150_000 });
+    await expect(page.getByTestId('import-log')).toBeEnabled({ timeout: 150_000 });
     sid = (await diagnostics(page)).session.sid!; lastObservedCapture = -1;
     const response = await request.get(`${api}/api/v1/sessions/${sid}`); expect(response.ok()).toBe(true);
     const status = await response.json();
@@ -94,23 +94,25 @@ test('T17 actual B041 resilience matrix or bounded 30 minute playback soak', asy
     const runtime = JSON.parse(await readFile(path.join(output, 'service/state', sid, 'worker/runtime.json'), 'utf8'));
     layout = { sourceWidth: 1280, sourceHeight: 720, markerPixels: runtime.marker_pixels };
     const mapping = page.getByTestId('mapping-json');
+    await page.getByTestId('import-log').click();
+    if (await page.getByTestId('upload-reconfigure').isVisible()) await page.getByTestId('upload-reconfigure').click();
     if (!(await mapping.isVisible())) await page.getByText('解析器与映射配置').click();
     await mapping.fill(JSON.stringify(profile));
     const uploaded = page.waitForResponse(response => response.request().method() === 'POST' && /\/logs(?:\?|$)/.test(response.url()));
     await page.getByTestId('file-input').setInputFiles(bundlePath);
     const upload = await uploaded; expect(upload.ok()).toBe(true); activeLogId = (await upload.json()).log_id;
     await expect(page.getByTestId('b041-provisional-note')).toContainText('暂定');
-    await expect(page.getByTestId('activate-log')).toBeEnabled(); await page.getByTestId('activate-log').click();
+    await expect(page.getByTestId('activate-log')).toBeEnabled(); await page.getByTestId('activate-log').click(); await page.getByTestId('close-import').click();
     return wait(label + '-loaded-at-zero', sample => sample.snapshot.log_time_s === 0 && sample.snapshot.state === 'ready');
   }
   async function closeSession(label: string) {
     const oldSid = sid, started = performance.now();
-    await page.getByTestId('close-session').click(); await expect(page.getByTestId('create-session')).toBeEnabled({ timeout: 20_000 });
+    await page.getByTestId('close-session').click(); await page.getByTestId('confirm-close-session').click(); await expect(page.getByTestId('create-session')).toBeEnabled({ timeout: 20_000 });
     expect((await request.get(`${api}/api/v1/sessions/${oldSid}`)).status()).toBe(404);
     sid = ''; activeLogId = ''; await event(label, { oldSid, elapsedMs: performance.now() - started });
   }
   async function seek(time: number, label = 'seek') {
-    await page.getByTestId('seek-input').fill(String(time)); await page.getByTestId('seek-submit').click();
+    await page.getByTestId('open-seek').click(); await page.getByTestId('seek-input').fill(String(time)); await page.getByTestId('seek-submit').click();
     // Playing seeks continue immediately; pause first for an exact-position assertion.
     return wait(label, sample => Math.abs(sample.snapshot.log_time_s - time) < 1e-8);
   }
@@ -207,7 +209,7 @@ test('T17 actual B041 resilience matrix or bounded 30 minute playback soak', asy
       }
       await speed('1');
       const index = Math.min(100, source.times.length - 3);
-      await page.getByTestId('frame-input').fill(String(index)); await page.getByTestId('frame-submit').click();
+      await page.getByTestId('open-seek').click(); await page.getByText('按原采样帧定位').click(); await page.getByTestId('frame-input').fill(String(index)); await page.getByTestId('frame-submit').click();
       await wait('frame-seek', sample => sample.snapshot.source_sample_index === index);
       await page.getByTestId('step-forward').click(); await wait('step-forward', sample => sample.snapshot.source_sample_index === index + 1);
       await page.getByTestId('step-backward').click(); await wait('step-backward', sample => sample.snapshot.source_sample_index === index);
