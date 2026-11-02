@@ -6,6 +6,7 @@ export interface BrowserEvidence {
   responses: Array<{ url: string; status: number }>;
   sockets: string[];
   serviceWorkers: string[];
+  pageErrors: string[];
   samples: unknown[];
   observations: Record<string, unknown>;
 }
@@ -27,6 +28,7 @@ export const test = base.extend<{ evidence: BrowserEvidence }>({
         responses: [],
         sockets: [],
         serviceWorkers: [],
+        pageErrors: [],
         samples: [],
         observations: {},
       };
@@ -54,6 +56,7 @@ export const test = base.extend<{ evidence: BrowserEvidence }>({
       context.on("serviceworker", (worker) =>
         evidence.serviceWorkers.push(worker.url()),
       );
+      page.on("pageerror", error => evidence.pageErrors.push(error.message));
       page.on("websocket", (socket) => {
         evidence.sockets.push(socket.url());
         if (!localOnly(socket.url())) blocked.push(socket.url());
@@ -84,6 +87,7 @@ export const test = base.extend<{ evidence: BrowserEvidence }>({
           contentType: "image/png",
         });
       }
+      expect(evidence.pageErrors, "Browser page errors").toEqual([]);
       expect(blocked, "Browser activity must stay on loopback origins").toEqual(
         [],
       );

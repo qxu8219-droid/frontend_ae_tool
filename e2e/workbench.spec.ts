@@ -20,14 +20,14 @@ async function cursor(page: Page) {
     )!;
     const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
     // Independent geometry from the documented final canvas, not renderer imports.
-    const expectedX = 80 + (frame.log_time_s / frame.duration_s) * 1160;
-    const pixel = ctx.getImageData(Math.floor(expectedX), 900, 1, 1).data;
+    const expectedX = 76 + (frame.log_time_s / frame.duration_s) * 1488;
+    const pixel = ctx.getImageData(Math.floor(expectedX), 700, 1, 1).data;
     const absentX = frame.log_time_s < 6 ? 1120 : 160;
-    const other = ctx.getImageData(absentX, 900, 1, 1).data;
+    const other = ctx.getImageData(absentX, 700, 1, 1).data;
     const cyan = (p: Uint8ClampedArray) =>
-      Math.abs(p[0] - 69) < 3 &&
-      Math.abs(p[1] - 216) < 3 &&
-      Math.abs(p[2] - 232) < 3;
+      Math.abs(p[0] - 53) < 3 &&
+      Math.abs(p[1] - 111) < 3 &&
+      Math.abs(p[2] - 173) < 3;
     return {
       captureId: frame.capture_id,
       time: frame.log_time_s,
@@ -48,7 +48,7 @@ test("file mapping is validated, upload inspected before activation, and failure
   page,
   evidence,
 }) => {
-  await page.getByText("解析器与映射配置").click();
+  await page.getByTestId("import-log").click();
   await page.getByTestId("mapping-json").fill("[]");
   await expect(page.getByTestId("mapping-error")).toBeVisible();
   await expect(page.getByTestId("choose-file")).toBeDisabled();
@@ -82,7 +82,10 @@ test("file mapping is validated, upload inspected before activation, and failure
   );
   assertPair(first);
   recordPair(evidence, "activated-upload", first);
+  await page.getByTestId("close-import").click();
   await seek(page, 5);
+  await page.getByTestId("import-log").click();
+  await page.getByTestId("upload-reconfigure").click();
   const oversized = Buffer.alloc(1024 * 1024 + 1);
   await page
     .getByTestId("file-input")
@@ -92,7 +95,9 @@ test("file mapping is validated, upload inspected before activation, and failure
       buffer: oversized,
     });
   await expect(page.getByTestId("upload-file-error")).toBeVisible();
+  await page.getByTestId("close-import").click();
   await page.getByTestId("scenario-select").selectOption("parse-error");
+  await page.getByTestId("import-log").click();
   await page
     .getByTestId("file-input")
     .setInputFiles({
@@ -142,6 +147,8 @@ test("100ms timeline preview and release commit the final target while displayed
   const first = await cursor(page);
   expect(first?.other).toBe(false);
   evidence.observations.cursor = first;
+  await page.getByTestId("open-seek").click();
+  await page.getByText("按原采样帧定位").click();
   await page.getByTestId("frame-input").fill("180");
   await page.getByTestId("frame-submit").click();
   const frameSeek = await waitPair(
@@ -169,13 +176,8 @@ test("history is reverse sorted and filterable, seek follows events, groups coll
   evidence,
 }) => {
   await loadDemo(page);
-  await expect
-    .poll(() =>
-      page
-        .getByTestId("channel-select")
-        .evaluate((el) => (el as HTMLSelectElement).selectedOptions.length),
-    )
-    .toBe(4);
+  await expect(page.locator(".channel-chip")).toHaveCount(4);
+  await page.getByTestId("limits-tab").click();
   const rows = page.getByTestId("history-events").locator("button");
   await expect.poll(() => rows.count()).toBeGreaterThan(0);
   const times = (await rows.allTextContents()).map((s) =>
@@ -206,10 +208,10 @@ test("history is reverse sorted and filterable, seek follows events, groups coll
   await page.waitForTimeout(100);
   const hidden = await page.getByTestId("paired-canvas").evaluate((canvas) => {
     const c = (canvas as HTMLCanvasElement).getContext("2d")!;
-    const pixels = c.getImageData(1030, 430, 60, 13).data;
+    const pixels = c.getImageData(812, 90, 300, 180).data;
     let bright = 0;
     for (let i = 0; i < pixels.length; i += 4)
-      if (pixels[i] > 180 && pixels[i + 1] > 180 && pixels[i + 2] > 180)
+      if (pixels[i] < 180 && pixels[i + 1] < 180 && pixels[i + 2] < 180)
         bright++;
     return bright;
   });
@@ -232,20 +234,13 @@ test("history is reverse sorted and filterable, seek follows events, groups coll
   ).map((s) => Number(s.split(" s")[0]));
   expect(resetTimes.every((time) => time === 0)).toBe(true);
   await expect(page.getByTestId("health-panel")).toContainText("CPU");
-  await page.getByTestId("channel-select").selectOption([]);
-  await page
-    .getByTestId("channel-select")
-    .selectOption(["torso_joint1", "left_gripper_finger_joint1"]);
-  await expect
-    .poll(() =>
-      page
-        .getByTestId("channel-select")
-        .evaluate((el) =>
-          Array.from((el as HTMLSelectElement).selectedOptions).map(
-            (o) => o.value,
-          ),
-        ),
-    )
-    .toEqual(["torso_joint1", "left_gripper_finger_joint1"]);
+  await page.getByTestId("open-channel-picker").click();
+  for (const name of ['torso_joint1', 'left_arm_joint1', 'right_arm_joint1', 'right_gripper_finger_joint2']) await page.getByRole('checkbox', { name: new RegExp('^' + name + ' ·') }).uncheck();
+  await page.locator('.channel-options label').filter({hasText: 'torso_joint1'}).locator('input').check();
+  await page.locator('.channel-options label').filter({hasText: 'left_gripper_finger_joint1'}).locator('input').check();
+  await page.getByTestId("apply-channels").click();
+  await expect(page.locator('.channel-chip')).toHaveCount(2);
+  await expect(page.locator('.channel-chip').first()).toContainText('torso_joint1');
+  await expect(page.locator('.channel-chip').last()).toContainText('left_gripper_finger_joint1');
   await expect.poll(async () => (await cursor(page))?.matched).toBe(true);
 });

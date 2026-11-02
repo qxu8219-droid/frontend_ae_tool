@@ -155,18 +155,23 @@ test('real B041 state replay preserves measured joints, provisional mapping, gap
     report.samples.push({ label, ...found! }); return found!;
   }
   async function seekFrame(index: number, label: string) {
-    await page.getByTestId('frame-input').fill(String(index)); await page.getByTestId('frame-submit').click();
+    if (await page.getByTestId('close-annotations').isVisible()) await page.getByTestId('close-annotations').click();
+    await page.getByTestId('open-seek').click(); await page.getByText('按原采样帧定位').click(); await page.getByTestId('frame-input').fill(String(index)); await page.getByTestId('frame-submit').click();
     const found = await wait(label, sample => Math.abs(sample.snapshot.log_time_s - current.times[index]) < 1e-8 && sample.snapshot.source_sample_index === index);
     report.handCheckpoints.push({ label, sourceId: current.bundle.source.id, sourceRow: current.samples[index].row, originalFrame: current.samples[index].frame_index,
       sourceClock: current.samples[index].time, nativeState: current.samples[index].state, expected: current.expected(current.times[index]), captureId: found.snapshot.capture_id });
     return found;
   }
   async function seekTime(time: number, label: string) {
-    await page.getByTestId('seek-input').fill(String(time)); await page.getByTestId('seek-submit').click();
+    if (await page.getByTestId('close-annotations').isVisible()) await page.getByTestId('close-annotations').click();
+    await page.getByTestId('open-seek').click(); await page.getByTestId('seek-input').fill(String(time)); await page.getByTestId('seek-submit').click();
     return wait(label, sample => Math.abs(sample.snapshot.log_time_s - time) < 1e-8);
   }
   async function load(file: string, source: ReturnType<typeof oracle>) {
+    if (await page.getByTestId('close-annotations').isVisible()) await page.getByTestId('close-annotations').click();
     const mapping = page.getByTestId('mapping-json');
+    await page.getByTestId('import-log').click();
+    if (await page.getByTestId('upload-reconfigure').isVisible()) await page.getByTestId('upload-reconfigure').click();
     if (!(await mapping.isVisible())) await page.getByText('解析器与映射配置').click();
     await mapping.fill(JSON.stringify(profile));
     const uploaded = page.waitForResponse(response => response.request().method() === 'POST' && /\/logs(?:\?|$)/.test(response.url()));
@@ -175,14 +180,16 @@ test('real B041 state replay preserves measured joints, provisional mapping, gap
     const data = await response.json(); activeLogId = data.log_id; current = source;
     report.uploads ??= []; report.uploads.push({ sourceId: source.bundle.source.id, ...data });
     await expect(page.getByTestId('b041-provisional-note')).toContainText('暂定');
-    await expect(page.getByTestId('activate-log')).toBeEnabled(); await page.getByTestId('activate-log').click();
+    await expect(page.getByTestId('activate-log')).toBeEnabled(); await page.getByTestId('activate-log').click(); await page.getByTestId('close-import').click();
     await wait('loaded-' + source.bundle.source.id, sample => sample.snapshot.log_time_s === 0 && sample.snapshot.state === 'ready');
+    await page.getByTestId('open-annotations').click();
     await expect(page.getByTestId('annotation-assumptions')).toContainText('尚非精确标定');
     const annotations = await (await request.get(`${api}/api/v1/sessions/${sid}/logs/${activeLogId}/annotations`)).json();
     expect(annotations.alignment).toBe(source.bundle.annotations.alignment);
     expect(annotations.provisional).toBe(true); return annotations;
   }
   async function verifySegments(index: number) {
+    if (!(await page.getByTestId('close-annotations').isVisible())) await page.getByTestId('open-annotations').click();
     const original = current.samples[index].frame_index!;
     const expected = current.bundle.annotations.segments.filter(segment => segment.start_frame <= original && original < segment.end_frame);
     const panels = page.getByTestId('annotation-current-segment');
@@ -198,7 +205,7 @@ test('real B041 state replay preserves measured joints, provisional mapping, gap
   try {
     await page.goto('/'); await expect(page.getByTestId('mode-badge')).toContainText('真实');
     expect(context.serviceWorkers()).toHaveLength(0);
-    await page.getByTestId('create-session').click(); await expect(page.getByTestId('choose-file')).toBeEnabled({ timeout: 150_000 });
+    await page.getByTestId('create-session').click(); await expect(page.getByTestId('import-log')).toBeEnabled({ timeout: 150_000 });
     sid = (await diagnostics(page)).session.sid!;
     const status = await (await request.get(`${api}/api/v1/sessions/${sid}`)).json(); report.workerPids.push(status.worker.pid); report.sessionId = sid;
     const runtimeInfo = JSON.parse(await readFile(path.join(output, 'service/state', sid, 'worker/runtime.json'), 'utf8'));
@@ -250,6 +257,7 @@ test('real B041 state replay preserves measured joints, provisional mapping, gap
     const missing = await seekTime(gapTime, 'runtime-gap-invalid-hold');
     for (const index of [...armTorso.map(channel => channel.canonical), 17, 18, 26, 27]) expect(missing.snapshot.quality[index].valid).toBe(false);
     expect(missing.snapshot.chassis).toBeNull(); report.gap = { before: runtime.times[gap - 1], after: runtime.times[gap], checked: gapTime, noPredictionFill: true };
+    await page.getByTestId('open-annotations').click();
     await expect(page.getByText(/历史事件 · \d+ · 诊断记录，不代表当前状态/)).toBeVisible();
     await page.getByText(/历史事件 · \d+ · 诊断记录，不代表当前状态/).click();
     if (onlineAnnotations.events.some((event: { time_s: number | null }) => event.time_s === null)) {
@@ -268,8 +276,9 @@ test('real B041 state replay preserves measured joints, provisional mapping, gap
       report.historyPagination = { total: count, lastEventId: last.id, lastPage: Math.ceil(count / 100) };
     }
     await page.screenshot({ path: path.join(output, 'runtime-gap.png'), fullPage: true });
+    await page.getByTestId('close-annotations').click();
     await page.getByTestId('stop').click(); await wait('runtime-stopped', sample => sample.snapshot.log_time_s === 0 && sample.snapshot.state === 'ready');
-    await page.getByTestId('close-session').click(); await expect(page.getByTestId('create-session')).toBeEnabled();
+    await page.getByTestId('close-session').click(); await page.getByTestId('confirm-close-session').click(); await expect(page.getByTestId('create-session')).toBeEnabled();
     expect(report.errors).toEqual([]); report.passed = true;
   } finally {
     report.final = await diagnostics(page).catch(() => null);

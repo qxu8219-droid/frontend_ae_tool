@@ -1,0 +1,154 @@
+{
+  "date": "2026-11-02",
+  "branch": "feature/light-replay-workbench",
+  "implementation_commit": "38843f9fe7848435a17c19a49fd32032c3eec7cb",
+  "baseline_frontend": "1777e4265e18517d055fd10610d1a3732b45400c",
+  "backend_commit": "e7401036addb518ef8303cbe364dd84cfe10b45e",
+  "api_generated_tree_unchanged": true,
+  "backend_worktree_unchanged": true,
+  "dependencies_unchanged": true,
+  "unit": {
+    "passed": 276,
+    "files": 28,
+    "source": "Task3 final fix report; npm test"
+  },
+  "typecheck_and_build": {
+    "command": "VITE_USE_MOCK=false npm run build",
+    "passed": true,
+    "log": "output/light-workbench/real-build-final.log",
+    "sha256": "9d6aa1378d30310ff04b695359aef646426fe71e27cba23177c68c0ee355cda1"
+  },
+  "browser": {
+    "passed": 19,
+    "mock": 18,
+    "contract_real_mode": 1,
+    "page_error_assertions_enabled": true,
+    "reports": [
+      {
+        "path": "output/light-workbench/final-fix-full-rerun/light-workbench-accessible-1c774-napshot-during-delayed-seek-mock/observations.json",
+        "sha256": "52cbaeb5ead6d52fa83d2d9ccf8153362b52e4fc9f49c02e2abe160b1ff58263"
+      },
+      {
+        "path": "output/light-workbench/final-fix-full-rerun/light-workbench-channel-ca-85bf0-seek-cannot-submit-by-Enter-mock/observations.json",
+        "sha256": "3c89c8848946c9690f8da9180919622f39802cc3b528ecb90d03be53d05730fe"
+      },
+      {
+        "path": "output/light-workbench/final-fix-full-rerun/light-workbench-drawers-pr-4e23d-e-the-unactivated-candidate-mock/observations.json",
+        "sha256": "18144648066b40f782fa06a04b2ab155005f9f2e3126fe347450db40d8fdeba7"
+      },
+      {
+        "path": "output/light-workbench/final-fix-full-rerun/light-workbench-numeric-se-17dbd--frames-without-page-errors-mock/observations.json",
+        "sha256": "8e8f9b7a8eb0dad7f225c450cf39a976b76892a499bf7117e096be953c20b375"
+      },
+      {
+        "path": "output/light-workbench/final-fix-full-rerun/light-workbench-workbench--391d5-p-widths-with-layers-closed-mock/observations.json",
+        "sha256": "dafedf572676f9eb7610c5d398687a64696d733be25473812fbf49b3826703de"
+      },
+      {
+        "path": "output/light-workbench/final-fix-full-rerun/real-mode-real-mode-expose-64aec-r-synthetic-fallback-frames-real/observations.json",
+        "sha256": "4ef1936cabea8f0836aa0e9a4db0711af45f0c5586b063fa7a49a17a4537860a"
+      },
+      {
+        "path": "output/light-workbench/final-fix-full-rerun/replay-UI-controls-preserv-b24c4-teps-speeds-stop-and-replay-mock/observations.json",
+        "sha256": "cf3b8b7c3ae0623ae4cc27cd61d838eda19fd44da9c7eaa8194070f5545ab852"
+      },
+      {
+        "path": "output/light-workbench/final-fix-full-rerun/replay-close-and-immediate-a02c5-ithout-old-session-metadata-mock/observations.json",
+        "sha256": "152731f65c3b6735efc4ef541ce1d0e505bfc4e34cf545522967f8a3975bd5f5"
+      },
+      {
+        "path": "output/light-workbench/final-fix-full-rerun/replay-data-delay-650-ms-l-a4ba3-caches-bounded-and-recovers-mock/observations.json",
+        "sha256": "7e37797326e376f0c38514d34ec9245833c45a478dd21ac93777823451b46ca9"
+      },
+      {
+        "path": "output/light-workbench/final-fix-full-rerun/replay-healthy-moving-Mock-f9e3c-initial-presentation-budget-mock/observations.json",
+        "sha256": "cee232a17c5dd23018d8af58d48aec6116a43fd6fb939448163d6f8092fee74a"
+      },
+      {
+        "path": "output/light-workbench/final-fix-full-rerun/replay-missing-channels-re-fafb8-id-quality-in-paired-frames-mock/observations.json",
+        "sha256": "d763168c79972b818c280c51ab59da306ca101caba2291749777e350d9e0aa18"
+      },
+      {
+        "path": "output/light-workbench/final-fix-full-rerun/replay-native-WebSocket-re-92c21-res-the-full-active-session-mock/observations.json",
+        "sha256": "43a016284dc17531136dc2038ee359d1ecbd5e4eb008f375ef2a7c84203dd570"
+      },
+      {
+        "path": "output/light-workbench/final-fix-full-rerun/replay-no-log-prevents-pla-8ccf1-ting-a-synthetic-substitute-mock/observations.json",
+        "sha256": "f9bf5b2f10660b59e245963a8c4361a578b45597f3beec8e773a89b6a5f8258a"
+      },
+      {
+        "path": "output/light-workbench/final-fix-full-rerun/replay-parse-error-returns-e27cb-nd-never-activates-playback-mock/observations.json",
+        "sha256": "53b69b94059e66fef992e7f51ddf24c1c6e6d4fa18d60695523b471bdc9d758f"
+      },
+      {
+        "path": "output/light-workbench/final-fix-full-rerun/replay-video-delay-650-ms--89748-caches-bounded-and-recovers-mock/observations.json",
+        "sha256": "d62b3547720ad7bd63148a7ad0418af1923da3dae26c0f79965a20e1661c4f2b"
+      },
+      {
+        "path": "output/light-workbench/final-fix-full-rerun/replay-worker-failure-free-fef39-and-demo-reupload-from-zero-mock/observations.json",
+        "sha256": "71be291a13d253f60b647aa9c068280f82164c22617c889c6cb1511a97fbee1f"
+      },
+      {
+        "path": "output/light-workbench/final-fix-full-rerun/workbench-100ms-timeline-p-b856a-nd-curve-cursor-stay-paired-mock/observations.json",
+        "sha256": "552d2d5e7f4aa3213901011480b82439957e85f8e918b3394ae3101d5ddcc91a"
+      },
+      {
+        "path": "output/light-workbench/final-fix-full-rerun/workbench-file-mapping-is--328d0-e-preserves-active-playback-mock/observations.json",
+        "sha256": "318455d467ee0f60f7ce8b55632eacc76c746e37022bc563146a281cd013561a"
+      },
+      {
+        "path": "output/light-workbench/final-fix-full-rerun/workbench-history-is-rever-ddc78--health-remains-independent-mock/observations.json",
+        "sha256": "7e7c7a0c22075f11b89aec1f012aa54e42fc652c31b3756c8761874f1c2e9804"
+      }
+    ]
+  },
+  "real_synthetic": {
+    "passed": true,
+    "samples": 65,
+    "healthy": {
+      "presentedFps": 19.750654088024667,
+      "maxCaptureAgeMs": 156.6611328125,
+      "sampleCount": 35
+    },
+    "worker_error_visible_ms": 876,
+    "errors": [],
+    "resources_released": true,
+    "evidence_path": "backend/outputs/light-workbench/synthetic-02/browser-evidence.json",
+    "evidence_sha256": "e74a82e3f5fa34bf3a646c89edec12505dba757105a5fe1c21cb1cfd2f9c3039"
+  },
+  "real_b041": {
+    "passed": true,
+    "samples": 32,
+    "hand_checkpoints": 11,
+    "annotation_checkpoints": 5,
+    "raw_files_checked": 27,
+    "sources_unchanged": true,
+    "errors": [],
+    "resources_released": true,
+    "evidence_path": "backend/outputs/light-workbench/b041-01/validation-evidence.json",
+    "evidence_sha256": "894c5e6f19cdaa727f4fb008cb9d6504d2e42cea672b0b5149c348e5405584b3",
+    "scope": "One offline recorded source and one live runtime source; existing provisional state/body-velocity profile, not calibration truth."
+  },
+  "environment": {
+    "sdk": "IsaacSim6.2.0 / Python3.12.15",
+    "power_profile_before": "balanced",
+    "power_profile_after": "balanced",
+    "power_profile_changed": false
+  },
+  "review": {
+    "task1": "pass",
+    "task2_scoped_rereview": "pass",
+    "task3_and_whole_branch_fix_rereview": "pass",
+    "remaining_actionable_findings": 0
+  },
+  "limits": [
+    "No new 30-minute soak or lossless-screen recording matrix",
+    "Not all 153 logs were GPU replayed",
+    "Firefox and very narrow/mobile layouts are not acceptance claims",
+    "Original dependency advisories and provisional gripper/chassis assumptions remain"
+  ],
+  "retained_failures": [
+    "backend/outputs/light-workbench/synthetic-01: numeric seek page errors; failed browser trace cleanup interrupted only owned launcher",
+    "frontend/output/light-workbench/final-fix-full: Vite watcher ENOSPC; generated outputs now excluded, all19checks reran successfully"
+  ]
+}

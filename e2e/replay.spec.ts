@@ -228,7 +228,9 @@ test("parse-error returns a valid visible error and never activates playback", a
       /\/sessions\/[^/]+\/logs$/.test(new URL(response.url()).pathname) &&
       response.request().method() === "POST",
   );
+  await page.getByTestId("import-log").click();
   await page.getByTestId("demo-load").click();
+  await page.getByTestId("close-import").click();
   const response = await upload;
   expect(response.status()).toBe(422);
   const body = await response.json();
@@ -299,7 +301,7 @@ test("no-log prevents playback without presenting a synthetic substitute", async
   await page.getByTestId("scenario-select").selectOption("no-log");
   await createReadySession(page);
   await expect(page.getByTestId("play")).toBeDisabled();
-  await expect(page.getByTestId("seek-submit")).toBeDisabled();
+  await expect(page.getByTestId("open-seek")).toBeDisabled();
   await expect(page.getByTestId("step-forward")).toBeDisabled();
   await page.waitForTimeout(350);
   const state = await diagnostics(page);
@@ -336,7 +338,7 @@ test("worker failure freezes the last pair until close, new session, and demo re
     /MOCK_WORKER_EXITED|worker failure|重建|故障/i,
   );
   await expect(page.getByTestId("play")).toBeDisabled();
-  await expect(page.getByTestId("demo-load")).toBeDisabled();
+  await expect(page.getByTestId("import-log")).toBeDisabled();
   const frozen = await readPair(page);
   expect(frozen).not.toBeNull();
   assertPair(frozen!, oldSid);
@@ -357,6 +359,7 @@ test("worker failure freezes the last pair until close, new session, and demo re
   await page.waitForTimeout(150);
   expect((await diagnostics(page)).session.workerPhase).toBe("error");
   await page.getByTestId("close-session").click();
+  await page.getByTestId("confirm-close-session").click();
   await expect
     .poll(async () => (await diagnostics(page)).session.sid)
     .toBeNull();
@@ -531,6 +534,7 @@ test("close and immediate recreate destroy delayed resources without old-session
     const oldSid = sid;
     const oldLog = loaded.snapshot.log_id;
     await page.getByTestId("close-session").click();
+  await page.getByTestId("confirm-close-session").click();
     await expect
       .poll(async () => (await diagnostics(page)).session.sid)
       .toBeNull();
@@ -560,6 +564,7 @@ test("close and immediate recreate destroy delayed resources without old-session
     }
   }
   await page.getByTestId("close-session").click();
+  await page.getByTestId("confirm-close-session").click();
   await expect
     .poll(async () => (await diagnostics(page)).session.sid)
     .toBeNull();

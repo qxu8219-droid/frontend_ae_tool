@@ -78,27 +78,30 @@ test('real SDK workbench presents verified frames through controls, transport lo
   }
   async function createAndLoad() {
     await expect(page.getByTestId('create-session')).toBeEnabled(); await page.getByTestId('create-session').click();
-    await expect(page.getByTestId('choose-file')).toBeEnabled({ timeout: 150000 });
+    await expect(page.getByTestId('import-log')).toBeEnabled({ timeout: 150000 });
     sid = (await diagnostics(page)).session.sid!;
     const status = await (await request.get(api + '/api/v1/sessions/' + sid)).json(); report.workerPids.push(status.worker.pid);
     const runtime = JSON.parse(await readFile(path.join(output, 'service/state', sid, 'worker/runtime.json'), 'utf8'));
     layout = { sourceWidth: 1280, sourceHeight: 720, markerPixels: runtime.marker_pixels };
     const mapping = page.getByTestId('mapping-json');
+    await page.getByTestId('import-log').click();
+    if (await page.getByTestId('upload-reconfigure').isVisible()) await page.getByTestId('upload-reconfigure').click();
     if (!(await mapping.isVisible())) await page.getByText('解析器与映射配置').click();
     await mapping.fill(JSON.stringify({ joints: { origin: 'commanded' }, chassis: { available: true, origin: 'commanded', yaw_semantics: 'angular_unwrapped' } }));
     await page.getByTestId('file-input').setInputFiles(sourcePath);
     await expect(page.getByTestId('upload-result')).toBeVisible();
-    await expect(page.getByTestId('activate-log')).toBeEnabled(); await page.getByTestId('activate-log').click();
+    await expect(page.getByTestId('activate-log')).toBeEnabled(); await page.getByTestId('activate-log').click(); await page.getByTestId('close-import').click();
     return wait('loaded', sample => sample.snapshot.log_time_s === 0 && sample.snapshot.state === 'ready');
   }
   async function seek(time: number) {
-    await page.getByTestId('seek-input').fill(String(time)); await page.getByTestId('seek-submit').click();
+    await page.getByTestId('open-seek').click(); await page.getByTestId('seek-input').fill(String(time)); await page.getByTestId('seek-submit').click();
     return wait('seek-' + time, sample => sample.snapshot.log_time_s === time);
   }
   try {
     await page.goto('/'); await expect(page.getByTestId('mode-badge')).toContainText('真实');
     expect(context.serviceWorkers()).toHaveLength(0);
     const first = await createAndLoad(); report.initialSid = sid!;
+    await page.getByTestId('limits-tab').click();
     await expect(page.getByTestId('history-events').locator('li[data-severity]')).not.toHaveCount(0);
     await page.getByTestId('event-view').selectOption('triggered');
     await expect(page.getByTestId('history-events').locator('li[data-severity]')).toHaveCount(0);
@@ -153,8 +156,8 @@ test('real SDK workbench presents verified frames through controls, transport lo
     report.delayedPairDeliveryMs = 700;
     await expect.poll(() => page.evaluate(() => {
       const frame = (window as any).__replayDiagnostics.snapshot(); const canvas = document.querySelector<HTMLCanvasElement>('[data-testid="paired-canvas"]')!;
-      const pixel = canvas.getContext('2d')!.getImageData(Math.floor(80 + frame.log_time_s / 12 * 1160), 900, 1, 1).data;
-      return Math.abs(pixel[0] - 69) < 3 && Math.abs(pixel[1] - 216) < 3 && Math.abs(pixel[2] - 232) < 3;
+      const pixel = canvas.getContext('2d')!.getImageData(Math.floor(76 + frame.log_time_s / 12 * 1488), 700, 1, 1).data;
+      return Math.abs(pixel[0] - 53) < 3 && Math.abs(pixel[1] - 111) < 3 && Math.abs(pixel[2] - 173) < 3;
     })).toBe(true);
     report.historyCursorPixelsVerified = true;
     const generation = (await diagnostics(page)).session.wsGeneration;
@@ -175,10 +178,10 @@ test('real SDK workbench presents verified frames through controls, transport lo
     report.workerErrorVisibleMs = Date.now() - killAt; expect(report.workerErrorVisibleMs).toBeLessThan(3000);
     await page.waitForTimeout(300); const frozen = await readPair(page, layout!); check(frozen!);
     expect(frozen!.snapshot.log_time_s).toBe(beforeFailure.log_time_s);
-    await page.getByTestId('close-session').click(); await expect(page.getByTestId('create-session')).toBeEnabled();
+    await page.getByTestId('close-session').click(); await page.getByTestId('confirm-close-session').click(); await expect(page.getByTestId('create-session')).toBeEnabled();
     const reloaded = await createAndLoad(); expect(sid!).not.toBe(first.snapshot.session_id);
     expect(reloaded.snapshot.log_time_s).toBe(0); report.reloadedSid = sid!;
-    await page.getByTestId('close-session').click(); await expect(page.getByTestId('create-session')).toBeEnabled();
+    await page.getByTestId('close-session').click(); await page.getByTestId('confirm-close-session').click(); await expect(page.getByTestId('create-session')).toBeEnabled();
     expect(report.errors).toEqual([]); report.passed = true;
   } finally {
     report.final = await diagnostics(page).catch(() => null);

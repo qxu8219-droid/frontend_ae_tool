@@ -139,46 +139,44 @@ export async function installRecordingEvidence(page: Page, output: string) {
       expected.height = canvas.height;
       const ctx = expected.getContext('2d')!;
       const mono = 'ui-monospace, SFMono-Regular, Menlo, monospace';
-      ctx.fillStyle = '#080f1b';
+      ctx.fillStyle = '#f3f6fa';
       ctx.fillRect(0, 0, expected.width, expected.height);
       ctx.textBaseline = 'alphabetic';
       ctx.textAlign = 'right';
       ctx.font = `14px ${mono}`;
-      ctx.fillStyle = '#45d8e8';
-      ctx.fillText(`CAPTURE ${snapshot.capture_id}  /  EPOCH ${snapshot.playback_epoch}  /  CONTROL ${snapshot.control_seq}`, 1260, 32);
-      ctx.fillStyle = '#0b1523';
-      ctx.fillRect(20, 592, 900, 74);
-      ctx.fillRect(936, 70, 324, 584);
+      ctx.fillStyle = '#356fad';
+      ctx.fillText(`CAPTURE ${snapshot.capture_id} / EPOCH ${snapshot.playback_epoch} / CONTROL ${snapshot.control_seq}`, 1584, 30);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(16, 488, 768, 42);
       ctx.font = `15px ${mono}`;
-      ctx.fillStyle = '#e5edf6';
+      ctx.fillStyle = '#18304e';
       ctx.textAlign = 'left';
-      ctx.fillText(`LOG TIME  ${snapshot.log_time_s.toFixed(3)} / ${snapshot.duration_s.toFixed(3)} s`, 20, 612);
+      ctx.fillText(`LOG TIME  ${snapshot.log_time_s.toFixed(3)} / ${snapshot.duration_s.toFixed(3)} s`, 20, 506);
       ctx.textAlign = 'right';
-      ctx.fillStyle = '#45d8e8';
-      ctx.fillText(`${(snapshot.progress * 100).toFixed(1)}% / ${snapshot.state} / ${snapshot.speed}x`, 920, 612);
+      ctx.fillStyle = '#356fad';
+      ctx.fillText(`${(snapshot.progress * 100).toFixed(1)}% / ${snapshot.state} / ${snapshot.speed}x`, 780, 506);
       ctx.textAlign = 'left';
-      ctx.font = `14px ${mono}`;
-      ctx.fillStyle = '#8297af';
-      ctx.fillText(`Wheel source rad: ${[1, 3, 5].map(index => snapshot.source_joints[index]!.toFixed(3)).join(' / ')} (unwrapped)`, 20, 660);
+      ctx.font = `13px ${mono}`;
+      ctx.fillStyle = '#60748c';
+      ctx.fillText(`Wheel source rad: ${[1, 3, 5].map(index => snapshot.source_joints[index]!.toFixed(3)).join(' / ')} (unwrapped)`, 390, 30);
       const regions = [
-        { name: 'capture_epoch_control', x: 700, y: 16, width: 562, height: 21 },
-        { name: 'log_time', x: 20, y: 593, width: 450, height: 24 },
-        { name: 'progress_state_speed', x: 600, y: 593, width: 320, height: 24 },
-        { name: 'source_wheel_angles', x: 20, y: 644, width: 700, height: 22 },
+        { name: 'capture_epoch_control', x: 1000, y: 14, width: 584, height: 20 },
+        { name: 'log_time', x: 20, y: 488, width: 450, height: 21 },
+        { name: 'progress_state_speed', x: 500, y: 488, width: 280, height: 21 },
+        { name: 'source_wheel_angles', x: 390, y: 16, width: 600, height: 18 },
       ];
       for (const index of [0, 1, 17, 25, 26, 27]) {
-        const y = 137 + index * 17.5;
-        if (index % 2 === 0) {
-          ctx.fillStyle = '#0f1c2c';
-          ctx.fillRect(942, y - 13, 312, 17.5);
-        }
+        const [x, top, offset, width] = index < 6 ? [1192, 320, index, 392] : index < 10 ? [800, 320, index - 6, 384] : index < 19 ? [800, 48, index - 10, 384] : [1192, 48, index - 19, 392];
+        const y = top + 67 + offset * 21;
+        ctx.fillStyle = offset % 2 === 0 ? '#f5f8fc' : '#ffffff';
+        ctx.fillRect(x + 1, y - 16, width - 2, 21);
         const quality = snapshot.quality[index]!;
         const unavailable = !quality.valid || quality.origin === 'missing';
-        ctx.fillStyle = unavailable ? '#738092' : '#e5edf6';
-        ctx.textAlign = 'right';
+        ctx.fillStyle = unavailable ? '#75859a' : '#18304e';
+        ctx.textAlign = 'right'; ctx.font = `16px ${mono}`;
         const value = snapshot.joints[index]!;
-        ctx.fillText(unavailable ? '—' : Math.abs(value) >= 10000 ? value.toExponential(1) : value.toFixed(3), 1093, y);
-        regions.push({ name: `joint_${index}`, x: 1020, y: Math.ceil(y-13), width: 75, height: 16 });
+        ctx.fillText(unavailable ? '—' : Math.abs(value) >= 10000 ? value.toExponential(1) : value.toFixed(3), x + 165, y);
+        regions.push({ name: `joint_${index}`, x: x + 95, y: y - 16, width: 72, height: 19 });
       }
       const entry = {
         kind: 'capture', wall_ms: Date.now(), performance_ms: performance.now(), snapshot,

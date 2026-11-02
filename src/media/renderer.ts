@@ -11,21 +11,17 @@ import {
 import type { DecodedFrame } from "./types";
 
 /** Fixed presentation geometry, shared with independent screenshot decoders. */
-export const PRESENTATION_WIDTH = 1280;
-export const PRESENTATION_HEIGHT = 1080;
+export const PRESENTATION_WIDTH = 1600;
+export const PRESENTATION_HEIGHT = 920;
 export const CANVAS_WIDTH = PRESENTATION_WIDTH;
 export const CANVAS_HEIGHT = PRESENTATION_HEIGHT;
-export const PRESENTATION_IMAGE_RECT = Object.freeze({
-  x: 20,
-  y: 70,
-  width: 900,
-  height: 506.25,
-});
-export const PRESENTATION_HISTORY_RECT = Object.freeze({
-  x: 20,
-  y: 740,
-  width: 1240,
-  height: 290,
+export const PRESENTATION_IMAGE_RECT = Object.freeze({ x: 16, y: 48, width: 768, height: 432 });
+export const PRESENTATION_HISTORY_RECT = Object.freeze({ x: 16, y: 568, width: 1568, height: 336 });
+export const PRESENTATION_GROUP_RECTS = Object.freeze({
+  left: Object.freeze({ x: 800, y: 48, width: 384, height: 264 }),
+  right: Object.freeze({ x: 1192, y: 48, width: 392, height: 264 }),
+  torso: Object.freeze({ x: 800, y: 320, width: 384, height: 232 }),
+  base: Object.freeze({ x: 1192, y: 320, width: 392, height: 232 }),
 });
 
 export interface PresentationOptions {
@@ -419,7 +415,7 @@ function preparePresentation(
   canvas.width = PRESENTATION_WIDTH;
   canvas.height = PRESENTATION_HEIGHT;
   const ctx = context2d(canvas);
-  ctx.fillStyle = COLORS.background;
+  ctx.fillStyle = "#f3f6fa";
   ctx.fillRect(0, 0, PRESENTATION_WIDTH, PRESENTATION_HEIGHT);
   return ctx;
 }
@@ -435,366 +431,86 @@ function compactName(name: string): string {
     .replace("torso_joint", "torso ");
 }
 
-function drawJointPanel(
-  ctx: CanvasRenderingContext2D,
-  snapshot: FrameSnapshot,
-  metadata: JointMetadata | null,
-  collapsedGroups: readonly string[] = [],
-): void {
-  ctx.fillStyle = COLORS.panel;
-  ctx.fillRect(936, 70, 324, 584);
-  label(ctx, "APPLIED JOINTS / 28", 948, 93, COLORS.text, 15);
-  label(ctx, "joint", 948, 116, COLORS.muted);
-  label(ctx, "value", 1093, 116, COLORS.muted, 14, "right");
-  label(ctx, "unit", 1101, 116, COLORS.muted);
-  label(ctx, "quality", 1140, 116, COLORS.muted);
-  label(ctx, "limit", 1252, 116, COLORS.muted, 14, "right");
+const LIGHT = Object.freeze({ panel: "#ffffff", edge: "#dee6ef", text: "#18304e", muted: "#60748c", missing: "#75859a", blue: "#356fad", warning: "#a66000", danger: "#b52e3b" });
+
+function drawJointPanel(ctx: CanvasRenderingContext2D, snapshot: FrameSnapshot, metadata: JointMetadata | null, collapsedGroups: readonly string[] = []): void {
   for (const group of jointPanelGroups(snapshot, metadata, collapsedGroups)) {
-    const groupTop = 124 + group.start * 17.5;
-    const groupHeight = group.count * 17.5;
-    ctx.fillStyle = group.color;
-    ctx.fillRect(936, groupTop, 4, groupHeight - 1);
-    ctx.save();
-    ctx.translate(929, groupTop + groupHeight / 2);
-    ctx.rotate(-Math.PI / 2);
-    label(ctx, group.label, 0, 0, group.color, 11, "center");
-    ctx.restore();
-    if (group.collapsed) {
-      ctx.fillStyle = "#101e30";
-      ctx.fillRect(942, groupTop, 312, groupHeight - 1);
-      label(
-        ctx,
-        `${group.label} · ${group.count} 关节已收起`,
-        955,
-        groupTop + groupHeight / 2 + 5,
-        group.color,
-        14,
-      );
-      continue;
-    }
-    for (const row of group.rows) {
-      const y = 137 + row.index * 17.5;
-      if (row.index % 2 === 0) {
-        ctx.fillStyle = "#0f1c2c";
-        ctx.fillRect(942, y - 13, 312, 17.5);
-      }
-      const color = row.available ? COLORS.text : COLORS.missing;
-      const limitColor =
-        row.limitState === "exceeded"
-          ? COLORS.danger
-          : row.limitState === "warning"
-            ? COLORS.warning
-            : row.available
-              ? COLORS.cyan
-              : COLORS.missing;
-      label(ctx, compactName(row.name), 948, y, color, 14);
-      label(ctx, row.valueText, 1093, y, color, 14, "right");
-      label(ctx, row.unit, 1101, y, color, 14);
-      ctx.font = "12px sans-serif";
-      ctx.fillStyle = !row.available
-        ? COLORS.missing
-        : row.quality.origin === "derived"
-          ? COLORS.cyan
-          : COLORS.muted;
-      ctx.textAlign = "left";
-      ctx.fillText(row.quality.text, 1140, y, 77);
-      const flags =
-        row.limitState === "exceeded"
-          ? "LIM"
-          : row.limitState === "warning"
-            ? "WARN"
-            : row.limitState === "unlimited"
-              ? "∞"
-              : row.limitState === "normal"
-                ? "OK"
-                : row.limitState === "unassessed"
-                  ? "未判"
-                : "—";
-      label(ctx, flags, 1252, y, limitColor, 12, "right");
-      if (row.fraction !== null) {
-        ctx.fillStyle = COLORS.edge;
-        ctx.fillRect(1220, y + 1.5, 32, 2);
-        ctx.fillStyle = limitColor;
-        ctx.fillRect(1220, y + 1.5, 32 * row.fraction, 2);
-      }
+    const rect = PRESENTATION_GROUP_RECTS[group.id as keyof typeof PRESENTATION_GROUP_RECTS];
+    ctx.fillStyle = LIGHT.panel; ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
+    ctx.strokeStyle = LIGHT.edge; ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
+    label(ctx, `${group.collapsed ? "▸" : "▾"} ${group.label} · ${group.count}`, rect.x + 12, rect.y + 23, LIGHT.text, 17);
+    if (group.collapsed) continue;
+    label(ctx, "关节", rect.x + 12, rect.y + 46, LIGHT.muted, 14);
+    label(ctx, "数值", rect.x + 165, rect.y + 46, LIGHT.muted, 14, "right");
+    label(ctx, "单位", rect.x + 181, rect.y + 46, LIGHT.muted, 14);
+    label(ctx, "来源", rect.x + 237, rect.y + 46, LIGHT.muted, 14);
+    label(ctx, "限位", rect.x + rect.width - 10, rect.y + 46, LIGHT.muted, 14, "right");
+    for (const [offset, row] of group.rows.entries()) {
+      const y = rect.y + 67 + offset * 21;
+      if (offset % 2 === 0) { ctx.fillStyle = "#f5f8fc"; ctx.fillRect(rect.x + 1, y - 16, rect.width - 2, 21); }
+      const color = row.available ? LIGHT.text : LIGHT.missing;
+      const limitColor = row.limitState === "exceeded" ? LIGHT.danger : row.limitState === "warning" ? LIGHT.warning : color;
+      label(ctx, compactName(row.name), rect.x + 12, y, color, 16);
+      label(ctx, row.valueText, rect.x + 165, y, color, 16, "right");
+      label(ctx, row.unit, rect.x + 181, y, color, 16);
+      ctx.font = "16px sans-serif"; ctx.fillStyle = color; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+      ctx.fillText(row.quality.text, rect.x + 237, y, 78);
+      const flags = row.limitState === "exceeded" ? "越限" : row.limitState === "warning" ? "临界" : row.limitState === "unlimited" ? "∞" : row.limitState === "normal" ? "正常" : row.limitState === "unassessed" ? "未评估" : row.limitState === "unknown" ? "未知" : "—";
+      label(ctx, flags, rect.x + rect.width - 10, y, limitColor, 16, "right");
     }
   }
-  label(ctx, "LIM 越限 · WARN 临界 · ∞ 无有限限位", 948, 640, COLORS.muted, 12);
 }
 
-function drawChassisHeading(
-  ctx: CanvasRenderingContext2D,
-  snapshot: FrameSnapshot,
-): void {
-  const x = 864,
-    y = 642;
-  const pose = snapshot.chassis;
-  ctx.beginPath();
-  ctx.arc(x, y, 20, 0, Math.PI * 2);
-  ctx.strokeStyle = COLORS.edge;
-  ctx.lineWidth = 1;
-  ctx.stroke();
-  line(
-    ctx,
-    [
-      [x - 23, y],
-      [x + 23, y],
-    ],
-    COLORS.edge,
-  );
-  line(
-    ctx,
-    [
-      [x, y - 23],
-      [x, y + 23],
-    ],
-    COLORS.edge,
-  );
-  if (pose) {
-    const direction: Point = [Math.cos(pose.yaw), -Math.sin(pose.yaw)];
-    const tip: Point = [x + direction[0] * 18, y + direction[1] * 18];
-    line(ctx, [[x, y], tip], COLORS.cyan, 2);
-    line(
-      ctx,
-      [
-        [
-          tip[0] - direction[0] * 6 - direction[1] * 4,
-          tip[1] - direction[1] * 6 + direction[0] * 4,
-        ],
-        tip,
-        [
-          tip[0] - direction[0] * 6 + direction[1] * 4,
-          tip[1] - direction[1] * 6 - direction[0] * 4,
-        ],
-      ],
-      COLORS.cyan,
-      2,
-    );
-  } else label(ctx, "—", x, y + 5, COLORS.missing, 14, "center");
-  label(
-    ctx,
-    pose ? "yaw" : "N/A",
-    897,
-    y + 4,
-    pose ? COLORS.muted : COLORS.missing,
-    10,
-  );
-}
-
-function drawHistory(
-  ctx: CanvasRenderingContext2D,
-  snapshot: FrameSnapshot,
-  options: PresentationOptions,
-): void {
+function drawHistory(ctx: CanvasRenderingContext2D, snapshot: FrameSnapshot, options: PresentationOptions): void {
   const rect = PRESENTATION_HISTORY_RECT;
-  ctx.fillStyle = COLORS.panel;
-  ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
+  ctx.fillStyle = LIGHT.panel; ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
   const range = options.historyRange;
-  const matches =
-    options.historyCanvas &&
-    options.historyLogId === snapshot.log_id &&
-    range &&
-    Number.isFinite(range.from) &&
-    Number.isFinite(range.to) &&
-    range.to > range.from;
-  if (!matches) {
-    label(
-      ctx,
-      "历史曲线 · 等待当前日志数据",
-      rect.x + rect.width / 2,
-      rect.y + rect.height / 2,
-      COLORS.muted,
-      16,
-      "center",
-    );
-    return;
-  }
-  ctx.imageSmoothingEnabled = true;
-  ctx.drawImage(
-    options.historyCanvas!,
-    rect.x,
-    rect.y,
-    rect.width,
-    rect.height,
-  );
+  const matches = options.historyCanvas && options.historyLogId === snapshot.log_id && range && Number.isFinite(range.from) && Number.isFinite(range.to) && range.to > range.from;
+  if (!matches) { label(ctx, "历史曲线 · 等待当前日志数据", rect.x + rect.width / 2, rect.y + rect.height / 2, LIGHT.muted, 16, "center"); return; }
+  ctx.imageSmoothingEnabled = true; ctx.drawImage(options.historyCanvas!, rect.x, rect.y, rect.width, rect.height);
   if (snapshot.log_time_s >= range.from && snapshot.log_time_s <= range.to) {
-    const cursor =
-      rect.x +
-      60 +
-      ((snapshot.log_time_s - range.from) / (range.to - range.from)) * 1160;
-    line(
-      ctx,
-      [
-        [cursor, 780],
-        [cursor, 1000],
-      ],
-      COLORS.cyan,
-      2,
-    );
-    ctx.fillStyle = COLORS.cyan;
-    ctx.beginPath();
-    ctx.moveTo(cursor - 5, 776);
-    ctx.lineTo(cursor + 5, 776);
-    ctx.lineTo(cursor, 783);
-    ctx.closePath();
-    ctx.fill();
-    label(
-      ctx,
-      `${snapshot.log_time_s.toFixed(3)} s`,
-      Math.max(110, Math.min(1190, cursor)),
-      1054,
-      COLORS.cyan,
-      14,
-      "center",
-    );
-  } else {
-    label(
-      ctx,
-      "当前帧位于所选曲线范围外",
-      640,
-      1054,
-      COLORS.muted,
-      14,
-      "center",
-    );
-  }
+    const cursor = rect.x + 60 + ((snapshot.log_time_s - range.from) / (range.to - range.from)) * 1488;
+    line(ctx, [[cursor, rect.y + 32], [cursor, rect.y + 300]], LIGHT.blue, 2);
+    label(ctx, `${snapshot.log_time_s.toFixed(3)} s`, Math.max(110, Math.min(1510, cursor)), rect.y + 330, LIGHT.blue, 14, "center");
+  } else label(ctx, "当前帧位于所选曲线范围外", 800, rect.y + 330, LIGHT.muted, 14, "center");
 }
 
 /** Paint an image and every visible reading from the same verified, frozen snapshot. */
-export function drawPresentation(
-  canvas: HTMLCanvasElement,
-  frame: DecodedFrame,
-  snapshot: FrameSnapshot,
-  jointMeta: JointMetadata | null,
-  options: PresentationOptions = {},
-): void {
+export function drawPresentation(canvas: HTMLCanvasElement, frame: DecodedFrame, snapshot: FrameSnapshot, jointMeta: JointMetadata | null, options: PresentationOptions = {}): void {
   const data = immutableSnapshot(snapshot);
-  if (
-    frame.sessionId !== data.session_id ||
-    frame.captureId !== data.capture_id
-  ) {
-    throw new Error(
-      "Presentation requires a frame and snapshot with the same identity",
-    );
-  }
+  if (frame.sessionId !== data.session_id || frame.captureId !== data.capture_id) throw new Error("Presentation requires a frame and snapshot with the same identity");
   const ctx = preparePresentation(canvas);
-  label(ctx, options.realMedia ? "ISAAC SIM ROBOT REPLAY" : "MOCK ROBOT REPLAY", 20, 32, COLORS.text, 20);
-  label(ctx, options.realMedia ? "Isaac Sim 6.2 / verified image + snapshot" : "Schematic fixture / no USD model", 20, 54, COLORS.muted, 14);
-  label(
-    ctx,
-    `CAPTURE ${data.capture_id}  /  EPOCH ${data.playback_epoch}  /  CONTROL ${data.control_seq}`,
-    1260,
-    32,
-    COLORS.cyan,
-    14,
-    "right",
-  );
+  label(ctx, options.realMedia ? "同步回放 · 真实画面" : "同步回放 · MOCK 示意", 16, 30, LIGHT.text, 18);
+  label(ctx, `CAPTURE ${data.capture_id} / EPOCH ${data.playback_epoch} / CONTROL ${data.control_seq}`, 1584, 30, LIGHT.blue, 14, "right");
   const rect = PRESENTATION_IMAGE_RECT;
-  ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(frame.image, rect.x, rect.y, rect.width, rect.height);
+  ctx.imageSmoothingEnabled = false; ctx.drawImage(frame.image, rect.x, rect.y, rect.width, rect.height);
   drawJointPanel(ctx, data, jointMeta, options.collapsedGroups);
-  ctx.fillStyle = COLORS.panel;
-  ctx.fillRect(20, 592, 900, 74);
-  label(
-    ctx,
-    `LOG TIME  ${data.log_time_s.toFixed(3)} / ${data.duration_s.toFixed(3)} s`,
-    20,
-    612,
-    COLORS.text,
-    15,
-  );
-  label(
-    ctx,
-    `${(data.progress * 100).toFixed(1)}% / ${data.state} / ${data.speed}x`,
-    920,
-    612,
-    COLORS.cyan,
-    15,
-    "right",
-  );
+  ctx.fillStyle = LIGHT.panel; ctx.fillRect(16, 488, 768, 42);
+  label(ctx, `LOG TIME  ${data.log_time_s.toFixed(3)} / ${data.duration_s.toFixed(3)} s`, 20, 506, LIGHT.text, 15);
+  label(ctx, `${(data.progress * 100).toFixed(1)}% / ${data.state} / ${data.speed}x`, 780, 506, LIGHT.blue, 15, "right");
   chassisPanelAxes(data).forEach((axis, index) => {
-    ctx.font = `13px ${MONO}`;
-    ctx.fillStyle = axis.available ? COLORS.text : COLORS.missing;
-    ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
-    ctx.fillText(`${index === 0 ? "CHASSIS " : ""}${axis.axis} ${axis.valueText} ${axis.unit} · ${axis.qualityText}`,
-      20 + index * 260, 637, 250);
+    ctx.font = `13px ${MONO}`; ctx.fillStyle = axis.available ? LIGHT.text : LIGHT.missing; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+    ctx.fillText(`${index === 0 ? "CHASSIS " : ""}${axis.axis} ${axis.valueText} ${axis.unit} · ${axis.qualityText}`, 20 + index * 250, 526, 245);
   });
-  label(
-    ctx,
-    `Wheel source rad: ${[1, 3, 5].map((index) => data.source_joints[index].toFixed(3)).join(" / ")} (unwrapped)`,
-    20,
-    660,
-    COLORS.muted,
-    14,
-  );
-  drawChassisHeading(ctx, data);
-  ctx.fillStyle = COLORS.edge;
-  ctx.fillRect(20, 674, 900, 10);
-  ctx.fillStyle = COLORS.cyan;
-  ctx.fillRect(20, 674, 900 * data.progress, 10);
-  label(
-    ctx,
-    "Image, joints, quality, limits and time share this capture.",
-    20,
-    707,
-    COLORS.muted,
-    14,
-  );
-  label(
-    ctx,
-    "灰色：缺失 / 无效 · 破折号：不可用",
-    948,
-    680,
-    COLORS.missing,
-    12,
-  );
-  label(
-    ctx,
-    "来源：实测 / 指令 / 推算 · 插值 / 前填 / 默认",
-    948,
-    704,
-    COLORS.cyan,
-    11,
-  );
+  label(ctx, `Wheel source rad: ${[1, 3, 5].map((index) => data.source_joints[index].toFixed(3)).join(" / ")} (unwrapped)`, 390, 30, LIGHT.muted, 13);
+  ctx.fillStyle = LIGHT.edge; ctx.fillRect(16, 529, 768, 1);
+  ctx.fillStyle = LIGHT.blue; ctx.fillRect(16, 529, 768 * data.progress, 1);
   drawHistory(ctx, data, options);
 }
 
 /** Clear stale readings while no complete image/snapshot pair is available. */
-export function drawEmptyPresentation(
-  canvas: HTMLCanvasElement,
-  message = "Waiting for a synchronized frame",
-): void {
+export function drawEmptyPresentation(canvas: HTMLCanvasElement, message = "Waiting for a synchronized frame"): void {
   const ctx = preparePresentation(canvas);
-  label(ctx, "ROBOT REPLAY", 20, 32, COLORS.text, 20);
-  ctx.fillStyle = COLORS.panel;
+  label(ctx, "同步回放", 16, 30, LIGHT.text, 18);
   const rect = PRESENTATION_IMAGE_RECT;
-  ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
-  ctx.fillRect(936, 70, 324, 584);
-  label(
-    ctx,
-    message,
-    rect.x + rect.width / 2,
-    rect.y + rect.height / 2,
-    COLORS.muted,
-    15,
-    "center",
-  );
-  label(ctx, "APPLIED JOINTS / 28", 948, 93, COLORS.text, 15);
-  label(ctx, "No paired snapshot", 948, 124, COLORS.muted, 14);
-  label(ctx, "LOG TIME  —", 20, 612, COLORS.muted, 15);
-  label(ctx, "CHASSIS  unavailable", 20, 637, COLORS.muted, 15);
-  ctx.fillStyle = COLORS.edge;
-  ctx.fillRect(20, 674, 900, 10);
-  const history = PRESENTATION_HISTORY_RECT;
-  ctx.fillStyle = COLORS.panel;
-  ctx.fillRect(history.x, history.y, history.width, history.height);
-  label(
-    ctx,
-    "历史曲线 · 等待同帧数据",
-    640,
-    history.y + history.height / 2,
-    COLORS.muted,
-    16,
-    "center",
-  );
+  ctx.fillStyle = LIGHT.panel; ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
+  label(ctx, message, rect.x + rect.width / 2, rect.y + rect.height / 2, LIGHT.muted, 16, "center");
+  for (const [id, group] of Object.entries(PRESENTATION_GROUP_RECTS)) {
+    ctx.fillStyle = LIGHT.panel; ctx.fillRect(group.x, group.y, group.width, group.height);
+    label(ctx, `${({ left: "左臂 / 夹爪 · 9", right: "右臂 / 夹爪 · 9", torso: "躯干 · 4", base: "底盘 · 6" } as Record<string,string>)[id]}`, group.x + 12, group.y + 23, LIGHT.text, 17);
+    label(ctx, "暂无同帧数据", group.x + 12, group.y + 50, LIGHT.muted, 16);
+  }
+  label(ctx, "LOG TIME —    CHASSIS —", 20, 520, LIGHT.muted, 16);
+  const history = PRESENTATION_HISTORY_RECT; ctx.fillStyle = LIGHT.panel; ctx.fillRect(history.x, history.y, history.width, history.height);
+  label(ctx, "历史曲线 · 等待同帧数据", 800, history.y + history.height / 2, LIGHT.muted, 16, "center");
 }

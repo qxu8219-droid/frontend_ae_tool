@@ -47,24 +47,26 @@ test('T17 bounded actual B041 browser recording for independent every-frame anal
   }
   try {
     await page.goto('/'); await expect(page.getByTestId('mode-badge')).toContainText('真实');
-    await page.getByTestId('create-session').click(); await expect(page.getByTestId('choose-file')).toBeEnabled({ timeout: 150_000 });
+    await page.getByTestId('create-session').click(); await expect(page.getByTestId('import-log')).toBeEnabled({ timeout: 150_000 });
     sid = (await diagnostics(page)).session.sid!;
     const status = await (await request.get(`${api}/api/v1/sessions/${sid}`)).json(); report.sid = sid; report.workerPid = status.worker.pid;
     const runtime = JSON.parse(await readFile(path.join(root, 'service/state', sid, 'worker/runtime.json'), 'utf8'));
     layout = { sourceWidth: 1280, sourceHeight: 720, markerPixels: runtime.marker_pixels };
     const mapping = page.getByTestId('mapping-json');
+    await page.getByTestId('import-log').click();
+    if (await page.getByTestId('upload-reconfigure').isVisible()) await page.getByTestId('upload-reconfigure').click();
     if (!(await mapping.isVisible())) await page.getByText('解析器与映射配置').click();
     await mapping.fill(JSON.stringify(profile));
     const uploaded = page.waitForResponse(response => response.request().method() === 'POST' && /\/logs(?:\?|$)/.test(response.url()));
     await page.getByTestId('file-input').setInputFiles(bundlePath);
     const upload = await uploaded; expect(upload.ok()).toBe(true); logId = (await upload.json()).log_id;
-    await expect(page.getByTestId('activate-log')).toBeEnabled(); await page.getByTestId('activate-log').click();
+    await expect(page.getByTestId('activate-log')).toBeEnabled(); await page.getByTestId('activate-log').click(); await page.getByTestId('close-import').click();
     await pair('recording-ready', sample => sample.snapshot.state === 'ready' && sample.snapshot.log_time_s === 0);
     await page.getByTestId('speed-select').selectOption('0.1'); await pair('recording-speed', sample => sample.snapshot.speed === .1);
     await page.getByTestId('play').click(); await pair('recording-playing', sample => sample.snapshot.state === 'playing');
     // A documented 1:1 CSS display avoids additional resampling of text glyphs.
     // These test styles affect layout only, never source pixels or panel content.
-    await page.addStyleTag({ content: '[data-testid="paired-canvas"]{width:1280px!important;min-width:1280px!important;height:1080px!important}.stage-scroll{overflow:visible!important}' });
+    await page.addStyleTag({ content: '[data-testid="paired-canvas"]{width:1600px!important;min-width:1600px!important;height:920px!important}.stage-scroll{overflow:visible!important}' });
     await page.getByTestId('paired-canvas').evaluate(canvas => canvas.scrollIntoView({ block: 'start', inline: 'nearest' }));
     await page.getByTestId('paired-canvas').evaluate(canvas => {
       const bounds = canvas.getBoundingClientRect();
@@ -72,7 +74,7 @@ test('T17 bounded actual B041 browser recording for independent every-frame anal
     });
     await page.waitForTimeout(400);
     const bounds = await page.getByTestId('paired-canvas').boundingBox();
-    expect(bounds).not.toBeNull(); expect(bounds!.width).toBe(1280); expect(bounds!.height).toBe(1080);
+    expect(bounds).not.toBeNull(); expect(bounds!.width).toBe(1600); expect(bounds!.height).toBe(920);
     expect(Number.isInteger(bounds!.x)).toBe(true); expect(Number.isInteger(bounds!.y)).toBe(true);
     expect(bounds!.x).toBeGreaterThanOrEqual(0); expect(bounds!.y).toBeGreaterThanOrEqual(0);
     expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(1600); expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(1250);
