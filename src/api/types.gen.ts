@@ -84,7 +84,7 @@ export interface paths {
         post?: never;
         /**
          * Delete Session
-         * @description Runtime destruction will be idempotent; no deletion is implemented yet.
+         * @description Idempotently destroy owned session resources and uploaded copies.
          */
         delete: operations["delete_session_api_v1_sessions__sid__delete"];
         options?: never;
@@ -103,6 +103,23 @@ export interface paths {
         put?: never;
         /** Upload Log */
         post: operations["upload_log_api_v1_sessions__sid__logs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sessions/{sid}/logs/{lid}/annotations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Annotations */
+        get: operations["get_annotations_api_v1_sessions__sid__logs__lid__annotations_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -306,11 +323,45 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AnnotationSegment
+         * @description Source labels, never promoted to confirmed robot state or approved training data.
+         */
+        AnnotationSegment: {
+            /**
+             * Boundary Status
+             * @default unknown
+             */
+            boundary_status?: string;
+            /** Details */
+            details?: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+            /** End Frame */
+            end_frame: number;
+            /** End S */
+            end_s: number;
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /**
+             * Review Status
+             * @default unknown
+             */
+            review_status?: string;
+            /** Start Frame */
+            start_frame: number;
+            /** Start S */
+            start_s: number;
+            /** Training Approved */
+            training_approved?: boolean | null;
+        };
         /** Body_upload_log_api_v1_sessions__sid__logs_post */
         Body_upload_log_api_v1_sessions__sid__logs_post: {
             /**
              * File
-             * @description Original log file, retained unchanged by the future parser.
+             * @description Original log file, retained unchanged in the owned session archive.
              */
             file: string;
             /**
@@ -328,7 +379,7 @@ export interface components {
              * @default linear
              * @enum {string}
              */
-            angle_semantics: "bounded" | "angular_wrapped" | "angular_unwrapped" | "linear";
+            angle_semantics?: "bounded" | "angular_wrapped" | "angular_unwrapped" | "linear";
             /** Joint Index */
             joint_index?: number | null;
             /**
@@ -367,12 +418,12 @@ export interface components {
              * Processing
              * @default []
              */
-            processing: ("original" | "unit_converted" | "interpolated" | "forward_filled" | "defaulted" | "derived")[];
+            processing?: ("original" | "unit_converted" | "interpolated" | "forward_filled" | "defaulted" | "derived")[];
             /**
              * Source Indices
              * @default []
              */
-            source_indices: number[];
+            source_indices?: number[];
             /** Valid */
             valid: boolean;
         };
@@ -400,19 +451,19 @@ export interface components {
              * @default 6.2.0
              * @constant
              */
-            isaacsim_version: "6.2.0";
+            isaacsim_version?: "6.2.0";
             /**
              * Mode
              * @default kinematic
              * @constant
              */
-            mode: "kinematic";
+            mode?: "kinematic";
             /**
              * Physics Engine
              * @default physx
              * @constant
              */
-            physics_engine: "physx";
+            physics_engine?: "physx";
             /** Robot Id */
             robot_id: string;
             /** Scene Id */
@@ -433,7 +484,7 @@ export interface components {
              * @default min_max
              * @constant
              */
-            downsampling: "min_max";
+            downsampling?: "min_max";
             /** From S */
             from_s: number;
             /** Log Id */
@@ -488,7 +539,7 @@ export interface components {
              * @default 1
              * @constant
              */
-            schema_version: 1;
+            schema_version?: 1;
             /** Session Id */
             session_id: string;
             /** Target Seq */
@@ -626,6 +677,32 @@ export interface components {
              */
             request_id?: string | null;
         };
+        /** LogAnnotations */
+        LogAnnotations: {
+            /**
+             * Alignment
+             * @enum {string}
+             */
+            alignment: "source_frames" | "reference_only" | "none";
+            /** Assumptions */
+            assumptions: string[];
+            /** Events */
+            events: components["schemas"]["RecordedEvent"][];
+            /** Log Id */
+            log_id: string;
+            /** Provisional */
+            provisional: boolean;
+            /** Reference */
+            reference: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+            /** Segments */
+            segments: components["schemas"]["AnnotationSegment"][];
+            /** Source Id */
+            source_id: string | null;
+            /** Source Sha256 */
+            source_sha256: string | null;
+        };
         /** LogChannels */
         LogChannels: {
             /** Channels */
@@ -672,7 +749,7 @@ export interface components {
              * Duration S
              * @default 0
              */
-            duration_s: number;
+            duration_s?: number;
             /** Log Id */
             log_id?: string | null;
             /** Playback Epoch */
@@ -683,14 +760,14 @@ export interface components {
              * @default 1
              * @constant
              */
-            schema_version: 1;
+            schema_version?: 1;
             /** Session Id */
             session_id: string;
             /**
              * Speed
              * @default 1
              */
-            speed: number;
+            speed?: number;
             /**
              * State
              * @enum {string}
@@ -717,7 +794,7 @@ export interface components {
              * @default accepted
              * @constant
              */
-            ack_stage: "accepted";
+            ack_stage?: "accepted";
             /** Control Seq */
             control_seq: number;
             playback: components["schemas"]["PlaybackSnapshot"];
@@ -726,6 +803,21 @@ export interface components {
             /** Request Id */
             request_id: string;
         };
+        /** RecordedEvent */
+        RecordedEvent: {
+            /** Details */
+            details?: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Message */
+            message: string;
+            /** Time S */
+            time_s: number | null;
+        };
         /** Robot */
         Robot: {
             /**
@@ -733,7 +825,7 @@ export interface components {
              * @default 28
              * @constant
              */
-            dof: 28;
+            dof?: 28;
             /** Id */
             id: string;
             /** Name */
@@ -794,7 +886,7 @@ export interface components {
              * @default starting
              * @constant
              */
-            status: "starting";
+            status?: "starting";
             /** Ws Url */
             ws_url: string;
         };
@@ -810,13 +902,13 @@ export interface components {
              * @default kinematic
              * @constant
              */
-            mode: "kinematic";
+            mode?: "kinematic";
             /**
              * Physics Engine
              * @default physx
              * @constant
              */
-            physics_engine: "physx";
+            physics_engine?: "physx";
             /** Render Fps */
             render_fps: number | null;
             /** Robot Id */
@@ -870,7 +962,7 @@ export interface components {
              * @default physx
              * @constant
              */
-            physics_engine: "physx";
+            physics_engine?: "physx";
             /** Usd Path */
             usd_path: string;
         };
@@ -917,13 +1009,13 @@ export interface components {
              * @default 1
              * @constant
              */
-            catalog_schema_version: 1;
+            catalog_schema_version?: 1;
             /**
              * Decoder
              * @default webcodecs_h264
              * @constant
              */
-            decoder: "webcodecs_h264";
+            decoder?: "webcodecs_h264";
             /** Ice Servers */
             ice_servers?: components["schemas"]["IceServer"][];
             /**
@@ -931,13 +1023,13 @@ export interface components {
              * @default capture32_crc32
              * @constant
              */
-            identity_scheme: "capture32_crc32";
+            identity_scheme?: "capture32_crc32";
             /**
              * Presentation
              * @default verified_pair_single_canvas
              * @constant
              */
-            presentation: "verified_pair_single_canvas";
+            presentation?: "verified_pair_single_canvas";
             /** Publishing */
             publishing: boolean;
             /**
@@ -945,7 +1037,7 @@ export interface components {
              * @default rtcrtp_script_transform_or_encoded_streams
              * @constant
              */
-            receiver_transform: "rtcrtp_script_transform_or_encoded_streams";
+            receiver_transform?: "rtcrtp_script_transform_or_encoded_streams";
             /** Render Fps */
             render_fps?: number | null;
             /** Sei Uuid Hex */
@@ -955,7 +1047,7 @@ export interface components {
              * @default h264_sei_snapshot_catalog
              * @constant
              */
-            snapshot_transport: "h264_sei_snapshot_catalog";
+            snapshot_transport?: "h264_sei_snapshot_catalog";
             /** Stream Path */
             stream_path: string | null;
             /**
@@ -963,7 +1055,7 @@ export interface components {
              * @default whep
              * @constant
              */
-            transport: "whep";
+            transport?: "whep";
             /** Whep Url */
             whep_url: string | null;
         };
@@ -984,7 +1076,7 @@ export interface components {
              * @default recreate_session_reload_from_start
              * @constant
              */
-            restart_policy: "recreate_session_reload_from_start";
+            restart_policy?: "recreate_session_reload_from_start";
         };
     };
     responses: never;
@@ -1031,7 +1123,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description State conflict, including NO_LOG_LOADED or MAX_SESSIONS_REACHED. */
+            /** @description State conflict, including NO_LOG_LOADED or SESSION_CAPACITY. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -1040,7 +1132,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description BACKEND_NOT_CONFIGURED in this contract release; worker unavailable or not ready at runtime. */
+            /** @description Runtime is not configured, or the worker is unavailable/not ready. */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -1098,7 +1190,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description State conflict, including NO_LOG_LOADED or MAX_SESSIONS_REACHED. */
+            /** @description State conflict, including NO_LOG_LOADED or SESSION_CAPACITY. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -1107,7 +1199,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description BACKEND_NOT_CONFIGURED in this contract release; worker unavailable or not ready at runtime. */
+            /** @description Runtime is not configured, or the worker is unavailable/not ready. */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -1163,7 +1255,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description State conflict, including NO_LOG_LOADED or MAX_SESSIONS_REACHED. */
+            /** @description State conflict, including NO_LOG_LOADED or SESSION_CAPACITY. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -1172,7 +1264,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description BACKEND_NOT_CONFIGURED in this contract release; worker unavailable or not ready at runtime. */
+            /** @description Runtime is not configured, or the worker is unavailable/not ready. */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -1232,7 +1324,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description State conflict, including NO_LOG_LOADED or MAX_SESSIONS_REACHED. */
+            /** @description State conflict, including NO_LOG_LOADED or SESSION_CAPACITY. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -1241,7 +1333,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description BACKEND_NOT_CONFIGURED in this contract release; worker unavailable or not ready at runtime. */
+            /** @description Runtime is not configured, or the worker is unavailable/not ready. */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -1299,7 +1391,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description State conflict, including NO_LOG_LOADED or MAX_SESSIONS_REACHED. */
+            /** @description State conflict, including NO_LOG_LOADED or SESSION_CAPACITY. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -1308,7 +1400,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description BACKEND_NOT_CONFIGURED in this contract release; worker unavailable or not ready at runtime. */
+            /** @description Runtime is not configured, or the worker is unavailable/not ready. */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -1364,7 +1456,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description State conflict, including NO_LOG_LOADED or MAX_SESSIONS_REACHED. */
+            /** @description State conflict, including NO_LOG_LOADED or SESSION_CAPACITY. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -1373,7 +1465,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description BACKEND_NOT_CONFIGURED in this contract release; worker unavailable or not ready at runtime. */
+            /** @description Runtime is not configured, or the worker is unavailable/not ready. */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -1435,7 +1527,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description State conflict, including NO_LOG_LOADED or MAX_SESSIONS_REACHED. */
+            /** @description State conflict, including NO_LOG_LOADED or SESSION_CAPACITY. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -1462,7 +1554,84 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description BACKEND_NOT_CONFIGURED in this contract release; worker unavailable or not ready at runtime. */
+            /** @description Runtime is not configured, or the worker is unavailable/not ready. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Other transport errors use the same error envelope. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    get_annotations_api_v1_sessions__sid__logs__lid__annotations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sid: string;
+                lid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogAnnotations"];
+                };
+            };
+            /** @description Invalid request syntax, parameters, fields, or non-finite numbers. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Requested scene, robot, session, log, or channel does not exist. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description State conflict, including NO_LOG_LOADED or SESSION_CAPACITY. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Stored annotation metadata violates its source bounds or contract. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Runtime is not configured, or the worker is unavailable/not ready. */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -1521,7 +1690,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description State conflict, including NO_LOG_LOADED or MAX_SESSIONS_REACHED. */
+            /** @description State conflict, including NO_LOG_LOADED or SESSION_CAPACITY. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -1530,7 +1699,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description BACKEND_NOT_CONFIGURED in this contract release; worker unavailable or not ready at runtime. */
+            /** @description Runtime is not configured, or the worker is unavailable/not ready. */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -1596,7 +1765,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description State conflict, including NO_LOG_LOADED or MAX_SESSIONS_REACHED. */
+            /** @description State conflict, including NO_LOG_LOADED or SESSION_CAPACITY. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -1605,7 +1774,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description BACKEND_NOT_CONFIGURED in this contract release; worker unavailable or not ready at runtime. */
+            /** @description Runtime is not configured, or the worker is unavailable/not ready. */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -1663,7 +1832,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description State conflict, including NO_LOG_LOADED or MAX_SESSIONS_REACHED. */
+            /** @description State conflict, including NO_LOG_LOADED or SESSION_CAPACITY. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -1672,7 +1841,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description BACKEND_NOT_CONFIGURED in this contract release; worker unavailable or not ready at runtime. */
+            /** @description Runtime is not configured, or the worker is unavailable/not ready. */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -1734,7 +1903,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description State conflict, including NO_LOG_LOADED or MAX_SESSIONS_REACHED. */
+            /** @description State conflict, including NO_LOG_LOADED or SESSION_CAPACITY. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -1743,7 +1912,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description BACKEND_NOT_CONFIGURED in this contract release; worker unavailable or not ready at runtime. */
+            /** @description Runtime is not configured, or the worker is unavailable/not ready. */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -1805,7 +1974,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description State conflict, including NO_LOG_LOADED or MAX_SESSIONS_REACHED. */
+            /** @description State conflict, including NO_LOG_LOADED or SESSION_CAPACITY. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -1814,7 +1983,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description BACKEND_NOT_CONFIGURED in this contract release; worker unavailable or not ready at runtime. */
+            /** @description Runtime is not configured, or the worker is unavailable/not ready. */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -1876,7 +2045,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description State conflict, including NO_LOG_LOADED or MAX_SESSIONS_REACHED. */
+            /** @description State conflict, including NO_LOG_LOADED or SESSION_CAPACITY. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -1885,7 +2054,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description BACKEND_NOT_CONFIGURED in this contract release; worker unavailable or not ready at runtime. */
+            /** @description Runtime is not configured, or the worker is unavailable/not ready. */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -1947,7 +2116,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description State conflict, including NO_LOG_LOADED or MAX_SESSIONS_REACHED. */
+            /** @description State conflict, including NO_LOG_LOADED or SESSION_CAPACITY. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -1956,7 +2125,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description BACKEND_NOT_CONFIGURED in this contract release; worker unavailable or not ready at runtime. */
+            /** @description Runtime is not configured, or the worker is unavailable/not ready. */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -2018,7 +2187,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description State conflict, including NO_LOG_LOADED or MAX_SESSIONS_REACHED. */
+            /** @description State conflict, including NO_LOG_LOADED or SESSION_CAPACITY. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -2027,7 +2196,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description BACKEND_NOT_CONFIGURED in this contract release; worker unavailable or not ready at runtime. */
+            /** @description Runtime is not configured, or the worker is unavailable/not ready. */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -2089,7 +2258,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description State conflict, including NO_LOG_LOADED or MAX_SESSIONS_REACHED. */
+            /** @description State conflict, including NO_LOG_LOADED or SESSION_CAPACITY. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -2098,7 +2267,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description BACKEND_NOT_CONFIGURED in this contract release; worker unavailable or not ready at runtime. */
+            /** @description Runtime is not configured, or the worker is unavailable/not ready. */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -2160,7 +2329,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description State conflict, including NO_LOG_LOADED or MAX_SESSIONS_REACHED. */
+            /** @description State conflict, including NO_LOG_LOADED or SESSION_CAPACITY. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -2169,7 +2338,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description BACKEND_NOT_CONFIGURED in this contract release; worker unavailable or not ready at runtime. */
+            /** @description Runtime is not configured, or the worker is unavailable/not ready. */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -2227,7 +2396,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description State conflict, including NO_LOG_LOADED or MAX_SESSIONS_REACHED. */
+            /** @description State conflict, including NO_LOG_LOADED or SESSION_CAPACITY. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -2236,7 +2405,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description BACKEND_NOT_CONFIGURED in this contract release; worker unavailable or not ready at runtime. */
+            /** @description Runtime is not configured, or the worker is unavailable/not ready. */
             503: {
                 headers: {
                     [name: string]: unknown;

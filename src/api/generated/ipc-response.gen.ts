@@ -17,6 +17,14 @@ export type AppliedWallS = number;
 export type CaptureId = number;
 export type CapturedWallS = number;
 export type Frame1 = "world";
+export type Quality = [ChannelQuality, ChannelQuality, ChannelQuality] | null;
+export type Method = string | null;
+export type Origin = "measured" | "commanded" | "derived" | "missing";
+export type Processing = (
+  "original" | "unit_converted" | "interpolated" | "forward_filled" | "defaulted" | "derived"
+)[];
+export type SourceIndices = number[];
+export type Valid = boolean;
 export type X = number;
 export type Y = number;
 export type Yaw = number;
@@ -67,7 +75,7 @@ export type Progress = number;
  * @minItems 28
  * @maxItems 28
  */
-export type Quality = [
+export type Quality1 = [
   ChannelQuality,
   ChannelQuality,
   ChannelQuality,
@@ -97,13 +105,6 @@ export type Quality = [
   ChannelQuality,
   ChannelQuality
 ];
-export type Method = string | null;
-export type Origin = "measured" | "commanded" | "derived" | "missing";
-export type Processing = (
-  "original" | "unit_converted" | "interpolated" | "forward_filled" | "defaulted" | "derived"
-)[];
-export type SourceIndices = number[];
-export type Valid = boolean;
 export type RawIdentityVerified = true;
 export type RenderSeq = number;
 export type SchemaVersion = 1;
@@ -143,6 +144,8 @@ export type SourceJoints = [
   number
 ];
 export type SourceSampleIndex = number | null;
+export type Speed = number;
+export type State = "ready" | "playing" | "paused" | "ended";
 export type TargetSeq = number;
 export type AppliedWallS1 = number;
 export type ControlSeq2 = number;
@@ -192,7 +195,7 @@ export type Progress1 = number;
  * @minItems 28
  * @maxItems 28
  */
-export type Quality1 = [
+export type Quality2 = [
   ChannelQuality,
   ChannelQuality,
   ChannelQuality,
@@ -259,6 +262,8 @@ export type SourceJoints1 = [
   number
 ];
 export type SourceSampleIndex1 = number | null;
+export type Speed1 = number;
+export type State1 = "ready" | "playing" | "paused" | "ended";
 export type TargetSeq1 = number;
 export type Ok = boolean;
 export type PlaybackEpoch2 = number;
@@ -301,17 +306,20 @@ export interface RenderedFrame {
   mode?: Mode;
   playback_epoch: PlaybackEpoch;
   progress: Progress;
-  quality: Quality;
+  quality: Quality1;
   raw_identity_verified: RawIdentityVerified;
   render_seq: RenderSeq;
   schema_version?: SchemaVersion;
   session_id: SessionId;
   source_joints: SourceJoints;
   source_sample_index?: SourceSampleIndex;
+  speed?: Speed;
+  state?: State;
   target_seq: TargetSeq;
 }
 export interface ChassisPose {
   frame?: Frame1;
+  quality?: Quality;
   x: X;
   y: Y;
   yaw: Yaw;
@@ -336,10 +344,12 @@ export interface AppliedFrame {
   mode?: Mode1;
   playback_epoch: PlaybackEpoch1;
   progress: Progress1;
-  quality: Quality1;
+  quality: Quality2;
   schema_version?: SchemaVersion1;
   session_id: SessionId1;
   source_joints: SourceJoints1;
   source_sample_index?: SourceSampleIndex1;
+  speed?: Speed1;
+  state?: State1;
   target_seq: TargetSeq1;
 }

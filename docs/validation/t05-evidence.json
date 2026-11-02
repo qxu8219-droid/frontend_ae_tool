@@ -1,0 +1,288 @@
+{
+  "date": "2026-10-23",
+  "scope": "T05 Mock frontend; no IsaacSim rendering or real robot data",
+  "versions": {
+    "node": "26.8.1",
+    "vue": "3.5.44",
+    "vite": "6.4.5",
+    "msw": "2.15.0",
+    "typescript": "5.9.3",
+    "chrome": "152.0.7977.82",
+    "playwright": "1.58.2"
+  },
+  "unit_tests": {
+    "passed": 124,
+    "report": "outputs/t05/unit-final.log"
+  },
+  "typecheck": "passed",
+  "production_build": "passed",
+  "e2e": {
+    "passed": 11,
+    "independent_canvas_samples": 144,
+    "cases": [
+      {
+        "title": "real mode exposes the backend 503 without MSW or synthetic fallback frames",
+        "status": "passed",
+        "samples": 0,
+        "report": "output/test-results/real-mode-real-mode-expose-64aec-r-synthetic-fallback-frames-real/observations.json",
+        "observations": {
+          "realMode": {
+            "responseStatus": 503,
+            "state": {
+              "snapshot": null,
+              "sync": {
+                "sessionId": "",
+                "generation": 0,
+                "frames": 0,
+                "snapshots": 0,
+                "capacity": 48,
+                "presented": 0,
+                "dropped": 0,
+                "lastCapture": 0
+              },
+              "session": {
+                "sid": null,
+                "workerPhase": "disconnected",
+                "wsGeneration": 0,
+                "wsState": "closed",
+                "mode": "real"
+              },
+              "source": {
+                "inFlight": 0,
+                "pending": 0,
+                "owned": 0
+              }
+            },
+            "serviceWorkerRegistrations": []
+          }
+        }
+      },
+      {
+        "title": "UI controls preserve actual frame pairing through play, pause, seek, steps, speeds, stop and replay",
+        "status": "passed",
+        "samples": 40,
+        "report": "output/test-results/replay-UI-controls-preserv-b24c4-teps-speeds-stop-and-replay-mock/observations.json",
+        "observations": {
+          "lifecycle": {
+            "sid": "mock-session-8e1c1c54-c0e4-4b2c-94b6-bc6fcf5ff71e-1",
+            "logId": "mock-log-8e1c1c54-c0e4-4b2c-94b6-bc6fcf5ff71e-3",
+            "sampledPhases": 11
+          }
+        }
+      },
+      {
+        "title": "close and immediate recreate destroy delayed resources without old-session metadata",
+        "status": "passed",
+        "samples": 16,
+        "report": "output/test-results/replay-close-and-immediate-a02c5-ithout-old-session-metadata-mock/observations.json",
+        "observations": {
+          "finalClosed": {
+            "snapshot": null,
+            "sync": {
+              "sessionId": "",
+              "generation": 6,
+              "frames": 0,
+              "snapshots": 0,
+              "capacity": 48,
+              "presented": 37,
+              "dropped": 2,
+              "lastCapture": 15
+            },
+            "session": {
+              "sid": null,
+              "workerPhase": "disconnected",
+              "wsGeneration": 6,
+              "wsState": "closed",
+              "mode": "mock"
+            },
+            "source": {
+              "inFlight": 0,
+              "pending": 0,
+              "owned": 0,
+              "dropped": 0,
+              "generation": 12
+            }
+          }
+        }
+      },
+      {
+        "title": "data-delay: 650 ms late delivery keeps actual frames paired, caches bounded, and recovers",
+        "status": "passed",
+        "samples": 16,
+        "report": "output/test-results/replay-data-delay-650-ms-l-a4ba3-caches-bounded-and-recovers-mock/observations.json",
+        "observations": {
+          "delay": {
+            "scenario": "data-delay",
+            "injectedDelayMs": 650,
+            "samples": 8,
+            "minObservedCaptureAgeMs": 666.10009765625,
+            "maxObservedCaptureAgeMs": 709
+          }
+        }
+      },
+      {
+        "title": "healthy moving Mock playback sustains the initial presentation budget",
+        "status": "passed",
+        "samples": 33,
+        "report": "output/test-results/replay-healthy-moving-Mock-f9e3c-initial-presentation-budget-mock/observations.json",
+        "observations": {
+          "performance": {
+            "scope": "Moving Mock canvas presentations; not IsaacSim/NVENC",
+            "elapsedMs": 7669.699999999255,
+            "presentations": 153,
+            "fps": 19.94862902069375,
+            "samples": 28,
+            "maxLatencyMs": 80.300048828125
+          }
+        }
+      },
+      {
+        "title": "missing channels retain explicit missing provenance and invalid quality in paired frames",
+        "status": "passed",
+        "samples": 5,
+        "report": "output/test-results/replay-missing-channels-re-fafb8-id-quality-in-paired-frames-mock/observations.json",
+        "observations": {}
+      },
+      {
+        "title": "native WebSocket reconnect advances generation and restores the full active session",
+        "status": "passed",
+        "samples": 8,
+        "report": "output/test-results/replay-native-WebSocket-re-92c21-res-the-full-active-session-mock/observations.json",
+        "observations": {
+          "reconnect": {
+            "beforeGeneration": 1,
+            "afterGeneration": 2
+          }
+        }
+      },
+      {
+        "title": "no-log prevents playback without presenting a synthetic substitute",
+        "status": "passed",
+        "samples": 0,
+        "report": "output/test-results/replay-no-log-prevents-pla-8ccf1-ting-a-synthetic-substitute-mock/observations.json",
+        "observations": {
+          "noLog": {
+            "snapshot": null,
+            "sync": {
+              "sessionId": "mock-session-2acd0135-a2e7-45f0-8669-0946956101f3-1",
+              "generation": 1,
+              "frames": 0,
+              "snapshots": 0,
+              "capacity": 48,
+              "presented": 0,
+              "dropped": 0,
+              "lastCapture": 0
+            },
+            "session": {
+              "sid": "mock-session-2acd0135-a2e7-45f0-8669-0946956101f3-1",
+              "workerPhase": "ready",
+              "wsGeneration": 1,
+              "wsState": "open",
+              "mode": "mock"
+            },
+            "source": {
+              "inFlight": 0,
+              "pending": 0,
+              "owned": 0,
+              "dropped": 0,
+              "generation": 2
+            }
+          }
+        }
+      },
+      {
+        "title": "parse-error returns a valid visible error and never activates playback",
+        "status": "passed",
+        "samples": 0,
+        "report": "output/test-results/replay-parse-error-returns-e27cb-nd-never-activates-playback-mock/observations.json",
+        "observations": {
+          "error": {
+            "status": 422,
+            "body": {
+              "error": {
+                "code": "MOCK_PARSE_ERROR",
+                "message": "Mock scenario: synthetic parser failure; uploaded content was not parsed",
+                "details": {
+                  "parser": "mock_fixture_v1",
+                  "issues": [
+                    {
+                      "severity": "error",
+                      "code": "MOCK_PARSE_ERROR",
+                      "message": "Mock synthetic parser failure; no uploaded content was parsed.",
+                      "line": null,
+                      "channel": null
+                    }
+                  ]
+                }
+              }
+            },
+            "state": {
+              "snapshot": null,
+              "sync": {
+                "sessionId": "mock-session-813125a3-7d95-40ea-b044-87e1cc270f8b-1",
+                "generation": 1,
+                "frames": 0,
+                "snapshots": 0,
+                "capacity": 48,
+                "presented": 0,
+                "dropped": 0,
+                "lastCapture": 0
+              },
+              "session": {
+                "sid": "mock-session-813125a3-7d95-40ea-b044-87e1cc270f8b-1",
+                "workerPhase": "ready",
+                "wsGeneration": 1,
+                "wsState": "open",
+                "mode": "mock"
+              },
+              "source": {
+                "inFlight": 0,
+                "pending": 0,
+                "owned": 0,
+                "dropped": 0,
+                "generation": 2
+              }
+            }
+          }
+        }
+      },
+      {
+        "title": "video-delay: 650 ms late delivery keeps actual frames paired, caches bounded, and recovers",
+        "status": "passed",
+        "samples": 16,
+        "report": "output/test-results/replay-video-delay-650-ms--89748-caches-bounded-and-recovers-mock/observations.json",
+        "observations": {
+          "delay": {
+            "scenario": "video-delay",
+            "injectedDelayMs": 650,
+            "samples": 8,
+            "minObservedCaptureAgeMs": 677.39990234375,
+            "maxObservedCaptureAgeMs": 715.400146484375
+          }
+        }
+      },
+      {
+        "title": "worker failure freezes the last pair until close, new session, and demo reupload from zero",
+        "status": "passed",
+        "samples": 10,
+        "report": "output/test-results/replay-worker-failure-free-fef39-and-demo-reupload-from-zero-mock/observations.json",
+        "observations": {
+          "workerRecovery": {
+            "oldSid": "mock-session-92e7f9e8-8261-4d0d-8bf1-99987736a0af-1",
+            "newSid": "mock-session-92e7f9e8-8261-4d0d-8bf1-99987736a0af-7",
+            "oldLog": "mock-log-92e7f9e8-8261-4d0d-8bf1-99987736a0af-3",
+            "newLog": "mock-log-92e7f9e8-8261-4d0d-8bf1-99987736a0af-9"
+          }
+        }
+      }
+    ]
+  },
+  "screenshot": "outputs/t05/workbench.png",
+  "screenshot_sha256": "cad32b5331cbe1298e0c2df6e830850f6212cba0086bd26f32c9ec20eec6d6b8",
+  "limits": [
+    "synthetic CPU images, not actual USD/H264/WHEP",
+    "real backend returns503 untilP2",
+    "8s health window notlong-term performance acceptance",
+    "T06/T07 completepanels/interactions remain"
+  ]
+}

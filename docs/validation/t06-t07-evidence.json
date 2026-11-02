@@ -1,0 +1,340 @@
+{
+  "date": "2026-10-23",
+  "scope": "T06/T07 Mock frontend; synthetic source, no real log parsing or integrated IsaacSim video",
+  "base_commit": "d368f09",
+  "commands": {
+    "unit": "npm test",
+    "typecheck_and_build": "npm run build",
+    "browser": "npm run test:e2e"
+  },
+  "unit_tests": 191,
+  "unit_files": 19,
+  "browser_cases": 14,
+  "paired_canvas_samples": 156,
+  "performance": {
+    "scope": "Moving Mock canvas presentations; not IsaacSim/NVENC",
+    "elapsedMs": 7753,
+    "presentations": 155,
+    "fps": 19.992261060234746,
+    "samples": 28,
+    "maxLatencyMs": 78.60009765625
+  },
+  "canvas": {
+    "width": 1280,
+    "height": 1080,
+    "image_rect": {
+      "x": 20,
+      "y": 70,
+      "width": 900,
+      "height": 506.25
+    },
+    "historical_channels": 4,
+    "current_joint_count": 28
+  },
+  "independent_browser_oracle": "Atomic read of canvas pixels and presented snapshot; independent capture32 CRC32, numeric glyphs, source trajectory, progress, body geometry and shared-canvas curve cursor. Test actions use UI only.",
+  "review_fixes": [
+    "Vue multi-select state matches plotted selection",
+    "Failed replacement clears candidate but keeps active log",
+    "Latest explicit seek supersedes older pending timeline target",
+    "Deletion failure retains retryable cleanup identity"
+  ],
+  "boundaries": [
+    "History view is explicitly prescanned limit_intervals, not a general event-history endpoint",
+    "Upload keeps Mock metadata/hash only; parser/mapping transmitted but no real data analysis",
+    "Real media remains unavailable pending T15",
+    "Short healthy Mock window is not real IsaacSim performance, physical display timing, or long-duration stability",
+    "Chrome only; no additional browser compatibility claim"
+  ],
+  "build_warning": "Vite main chunk 506.61kB minified (151.17kB gzip), slightly above default500kB advisory. Build succeeds; ECharts loaded asynchronously.",
+  "browser_ports": [
+    5183,
+    5184,
+    18010
+  ],
+  "cases": [
+    {
+      "title": "real mode exposes the backend 503 without MSW or synthetic fallback frames",
+      "project": "real",
+      "status": "passed",
+      "samples": 0,
+      "observations": {
+        "realMode": {
+          "responseStatus": 503,
+          "state": {
+            "snapshot": null,
+            "sync": {
+              "sessionId": "",
+              "generation": 0,
+              "frames": 0,
+              "snapshots": 0,
+              "capacity": 48,
+              "presented": 0,
+              "dropped": 0,
+              "lastCapture": 0
+            },
+            "session": {
+              "sid": null,
+              "workerPhase": "disconnected",
+              "wsGeneration": 0,
+              "wsState": "closed",
+              "mode": "real"
+            },
+            "source": {
+              "inFlight": 0,
+              "pending": 0,
+              "owned": 0
+            }
+          },
+          "serviceWorkerRegistrations": []
+        }
+      }
+    },
+    {
+      "title": "UI controls preserve actual frame pairing through play, pause, seek, steps, speeds, stop and replay",
+      "project": "mock",
+      "status": "passed",
+      "samples": 40,
+      "observations": {
+        "lifecycle": {
+          "sid": "mock-session-38940e87-3b3f-44a9-9e9f-00d42da4b1b9-1",
+          "logId": "mock-log-38940e87-3b3f-44a9-9e9f-00d42da4b1b9-3",
+          "sampledPhases": 11
+        }
+      }
+    },
+    {
+      "title": "close and immediate recreate destroy delayed resources without old-session metadata",
+      "project": "mock",
+      "status": "passed",
+      "samples": 16,
+      "observations": {
+        "finalClosed": {
+          "snapshot": null,
+          "sync": {
+            "sessionId": "",
+            "generation": 6,
+            "frames": 0,
+            "snapshots": 0,
+            "capacity": 48,
+            "presented": 44,
+            "dropped": 2,
+            "lastCapture": 17
+          },
+          "session": {
+            "sid": null,
+            "workerPhase": "disconnected",
+            "wsGeneration": 6,
+            "wsState": "closed",
+            "mode": "mock"
+          },
+          "source": {
+            "inFlight": 0,
+            "pending": 0,
+            "owned": 0,
+            "dropped": 0,
+            "generation": 12
+          }
+        }
+      }
+    },
+    {
+      "title": "data-delay: 650 ms late delivery keeps actual frames paired, caches bounded, and recovers",
+      "project": "mock",
+      "status": "passed",
+      "samples": 16,
+      "observations": {
+        "delay": {
+          "scenario": "data-delay",
+          "injectedDelayMs": 650,
+          "samples": 8,
+          "minObservedCaptureAgeMs": 674.800048828125,
+          "maxObservedCaptureAgeMs": 716.800048828125
+        }
+      }
+    },
+    {
+      "title": "healthy moving Mock playback sustains the initial presentation budget",
+      "project": "mock",
+      "status": "passed",
+      "samples": 33,
+      "observations": {
+        "performance": {
+          "scope": "Moving Mock canvas presentations; not IsaacSim/NVENC",
+          "elapsedMs": 7753,
+          "presentations": 155,
+          "fps": 19.992261060234746,
+          "samples": 28,
+          "maxLatencyMs": 78.60009765625
+        }
+      }
+    },
+    {
+      "title": "missing channels retain explicit missing provenance and invalid quality in paired frames",
+      "project": "mock",
+      "status": "passed",
+      "samples": 5,
+      "observations": {}
+    },
+    {
+      "title": "native WebSocket reconnect advances generation and restores the full active session",
+      "project": "mock",
+      "status": "passed",
+      "samples": 8,
+      "observations": {
+        "reconnect": {
+          "beforeGeneration": 1,
+          "afterGeneration": 2
+        }
+      }
+    },
+    {
+      "title": "no-log prevents playback without presenting a synthetic substitute",
+      "project": "mock",
+      "status": "passed",
+      "samples": 0,
+      "observations": {
+        "noLog": {
+          "snapshot": null,
+          "sync": {
+            "sessionId": "mock-session-aa3b0a24-38bc-4015-8ed2-aea0a0e3ac91-1",
+            "generation": 1,
+            "frames": 0,
+            "snapshots": 0,
+            "capacity": 48,
+            "presented": 0,
+            "dropped": 0,
+            "lastCapture": 0
+          },
+          "session": {
+            "sid": "mock-session-aa3b0a24-38bc-4015-8ed2-aea0a0e3ac91-1",
+            "workerPhase": "ready",
+            "wsGeneration": 1,
+            "wsState": "open",
+            "mode": "mock"
+          },
+          "source": {
+            "inFlight": 0,
+            "pending": 0,
+            "owned": 0,
+            "dropped": 0,
+            "generation": 2
+          }
+        }
+      }
+    },
+    {
+      "title": "parse-error returns a valid visible error and never activates playback",
+      "project": "mock",
+      "status": "passed",
+      "samples": 0,
+      "observations": {
+        "error": {
+          "status": 422,
+          "body": {
+            "error": {
+              "code": "MOCK_PARSE_ERROR",
+              "message": "Mock scenario: synthetic parser failure; uploaded content was not parsed",
+              "details": {
+                "parser": "mock_fixture_v1",
+                "issues": [
+                  {
+                    "severity": "error",
+                    "code": "MOCK_PARSE_ERROR",
+                    "message": "Mock synthetic parser failure; no uploaded content was parsed.",
+                    "line": null,
+                    "channel": null
+                  }
+                ]
+              }
+            }
+          },
+          "state": {
+            "snapshot": null,
+            "sync": {
+              "sessionId": "mock-session-2f13d6c8-4948-44dd-a9f4-87c5fc23fcff-1",
+              "generation": 1,
+              "frames": 0,
+              "snapshots": 0,
+              "capacity": 48,
+              "presented": 0,
+              "dropped": 0,
+              "lastCapture": 0
+            },
+            "session": {
+              "sid": "mock-session-2f13d6c8-4948-44dd-a9f4-87c5fc23fcff-1",
+              "workerPhase": "ready",
+              "wsGeneration": 1,
+              "wsState": "open",
+              "mode": "mock"
+            },
+            "source": {
+              "inFlight": 0,
+              "pending": 0,
+              "owned": 0,
+              "dropped": 0,
+              "generation": 2
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "video-delay: 650 ms late delivery keeps actual frames paired, caches bounded, and recovers",
+      "project": "mock",
+      "status": "passed",
+      "samples": 16,
+      "observations": {
+        "delay": {
+          "scenario": "video-delay",
+          "injectedDelayMs": 650,
+          "samples": 8,
+          "minObservedCaptureAgeMs": 678.10009765625,
+          "maxObservedCaptureAgeMs": 718.999755859375
+        }
+      }
+    },
+    {
+      "title": "worker failure freezes the last pair until close, new session, and demo reupload from zero",
+      "project": "mock",
+      "status": "passed",
+      "samples": 10,
+      "observations": {
+        "workerRecovery": {
+          "oldSid": "mock-session-aa3b20b2-e8e6-48dd-9409-db66f784b2d4-1",
+          "newSid": "mock-session-aa3b20b2-e8e6-48dd-9409-db66f784b2d4-7",
+          "oldLog": "mock-log-aa3b20b2-e8e6-48dd-9409-db66f784b2d4-3",
+          "newLog": "mock-log-aa3b20b2-e8e6-48dd-9409-db66f784b2d4-9"
+        }
+      }
+    },
+    {
+      "title": "100ms timeline preview and release commit the final target while displayed frame and curve cursor stay paired",
+      "project": "mock",
+      "status": "passed",
+      "samples": 10,
+      "observations": {
+        "cursor": {
+          "captureId": 17,
+          "time": 8.25,
+          "expectedX": 877.5,
+          "matched": true,
+          "other": false
+        }
+      }
+    },
+    {
+      "title": "file mapping is validated, upload inspected before activation, and failure preserves active playback",
+      "project": "mock",
+      "status": "passed",
+      "samples": 1,
+      "observations": {}
+    },
+    {
+      "title": "history is reverse sorted and filterable, seek follows events, groups collapse, and health remains independent",
+      "project": "mock",
+      "status": "passed",
+      "samples": 1,
+      "observations": {}
+    }
+  ]
+}
