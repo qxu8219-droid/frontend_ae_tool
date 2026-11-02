@@ -57,6 +57,8 @@ B041 先在“解析器与映射配置”的“映射 JSON”粘贴 `mapping.jso
 
 用 `API_PROXY_TARGET=http://127.0.0.1:18000` 调整开发代理目标；`VITE_API_BASE_URL` 调整 API 基址。切换模式后重启 Vite 并刷新页面。构建模式同样在构建时确定：真实构建使用 `VITE_USE_MOCK=false npm run build`。`API_PROXY_TARGET` 由启动进程环境读取，需通过shell显式设置，不能只写入未source的.env.local。
 
+验证结果和实际SDK证据见 [浅色工作台验证记录](docs/validation/light-workbench-status.md)。
+
 ## 检查
 
 ```bash
