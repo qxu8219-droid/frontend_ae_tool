@@ -1,0 +1,82 @@
+{
+  "release": "v1.1.0",
+  "date": "2026-11-02",
+  "component": "frontend",
+  "application_version": "1.1.0",
+  "implementation_commit": "38843f9fe7848435a17c19a49fd32032c3eec7cb",
+  "checks": [
+    {
+      "name": "unit",
+      "argv": [
+        "npm",
+        "test"
+      ],
+      "env_overrides": {},
+      "started_at": "2026-11-02T06:07:28.173104+00:00",
+      "finished_at": "2026-11-02T06:07:30.932462+00:00",
+      "elapsed_seconds": 2.759358,
+      "exit_code": 0,
+      "log": "output/release-v1.1.0/frontend-checks/unit.log",
+      "sha256": "b16e0832e986905ae1d1171149bbe6db62a6dfa8ac2d711fb4b464af8343f816"
+    },
+    {
+      "name": "real-build",
+      "argv": [
+        "npm",
+        "run",
+        "build"
+      ],
+      "env_overrides": {
+        "VITE_USE_MOCK": "false"
+      },
+      "started_at": "2026-11-02T06:07:30.934810+00:00",
+      "finished_at": "2026-11-02T06:07:43.974956+00:00",
+      "elapsed_seconds": 13.040146,
+      "exit_code": 0,
+      "log": "output/release-v1.1.0/frontend-checks/real-build.log",
+      "sha256": "330c3a45f483a777ed59daba801fbe13a1665cf33f2d88a4a6094c417005f3ed"
+    },
+    {
+      "name": "e2e",
+      "argv": [
+        "npm",
+        "run",
+        "test:e2e",
+        "--",
+        "--output=output/release-v1.1.0/frontend-checks/test-results",
+        "--reporter=list,json"
+      ],
+      "env_overrides": {
+        "PLAYWRIGHT_JSON_OUTPUT_FILE": "/home/xq/work/code/projects/Model_Evaluation/frontend/output/release-v1.1.0/frontend-checks/e2e-results.json"
+      },
+      "started_at": "2026-11-02T06:07:43.980391+00:00",
+      "finished_at": "2026-11-02T06:09:34.617018+00:00",
+      "elapsed_seconds": 110.636627,
+      "exit_code": 0,
+      "log": "output/release-v1.1.0/frontend-checks/e2e.log",
+      "sha256": "6a2438bb678b50a7fe8051865682f88afc5e93f8caf13f35357a69dbb870a111"
+    }
+  ],
+  "results": {
+    "unit_files_passed": 28,
+    "unit_tests_passed": 276,
+    "typecheck_passed": true,
+    "real_mode_build_passed": true,
+    "browser_passed": 19,
+    "mock_browser_passed": 18,
+    "contract_only_real_mode_passed": 1,
+    "page_error_assertions_enabled": true
+  },
+  "api_generated_tree_unchanged_from": "v1.0.0",
+  "dependencies_unchanged": true,
+  "package_lock_change": "Root application version only; dependency versions unchanged.",
+  "test_ports_still_listening": [],
+  "user_services_restarted": false,
+  "scope": "Fresh unit/typecheck/build and default Chrome Mock/contract checks. Release metadata/docs only since the completed actual SDK/UI checks on implementation_commit. No GPU rerun during release preparation.",
+  "ui_gpu_evidence": "docs/validation/light-workbench-evidence.json",
+  "warnings": [
+    "dist/assets/index-DWvDhsDG.js                           575.78 kB │ gzip: 174.62 kB; above the 500 kB warning threshold.",
+    "Node module.register() deprecation and NO_COLOR/FORCE_COLOR notices."
+  ],
+  "raw_test_logs_tracked": false
+}

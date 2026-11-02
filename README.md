@@ -1,12 +1,12 @@
 # 机器人日志回放前端
 
-当前发布基线：**v1.0.0**。查看[发布说明](docs/releases/v1.0.0.md)与[Git 开发规范](CONTRIBUTING.md)。两个仓库需使用同名版本标签；后续需求从 `main` 新建分支。
+当前发布基线：**v1.1.0**。查看[发布说明](docs/releases/v1.1.0.md)与[Git 开发规范](CONTRIBUTING.md)。两个仓库需使用同名版本标签；后续需求从 `main` 新建分支。`v1.0.0` 保留为首版基线。
 
-本分支采用浅色工作台：顶部环境与日志工具条、右侧导入/详情抽屉、双臂在上的 2×2 关节分组、四条叠放曲线，以及下方阶段/限位/运行记录页签。通道选择、精确定位、会话关闭和健康信息通过局部弹层操作。
+本版本采用浅色工作台：顶部环境与日志工具条、右侧导入/详情抽屉、双臂在上的 2×2 关节分组、四条叠放曲线，以及下方阶段/限位/运行记录页签。通道选择、精确定位、会话关闭和健康信息通过局部弹层操作。
 
-T05～T07 已提供可独立运行的 Vue Mock 工作台。包含会话创建、上传检查与映射、完整播放器、28 关节分组与底盘朝向、历史曲线、事件过滤/定位、系统健康与故障场景。T15 接入实际 IsaacSim 6.2 视频和正式后端业务，T16 已增加 B041 便携包上传、暂定映射来源及按源帧对齐的标注展示。真实视频与数据严格按同帧身份共同呈现；Mock 模式保留独立合成示意图。媒体使用见 [真实回放说明](docs/real-media-v1.md)，真机数据使用见 [B041 回放说明](https://github.com/qxu8219-droid/backend_ae_tool/blob/v1.0.0/docs/b041-replay-v1.md)。
+T05～T07 已提供可独立运行的 Vue Mock 工作台。包含会话创建、上传检查与映射、完整播放器、28 关节分组与底盘朝向、历史曲线、事件过滤/定位、系统健康与故障场景。T15 接入实际 IsaacSim 6.2 视频和正式后端业务，T16 已增加 B041 便携包上传、暂定映射来源及按源帧对齐的标注展示。真实视频与数据严格按同帧身份共同呈现；Mock 模式保留独立合成示意图。媒体使用见 [真实回放说明](docs/real-media-v1.md)，真机数据使用见 [B041 回放说明](https://github.com/qxu8219-droid/backend_ae_tool/blob/v1.1.0/docs/b041-replay-v1.md)。
 
-首次安装和本地交付请先阅读 [运行手册](https://github.com/qxu8219-droid/backend_ae_tool/blob/v1.0.0/docs/delivery-v1.md)；故障定位见 [排查说明](https://github.com/qxu8219-droid/backend_ae_tool/blob/v1.0.0/docs/troubleshooting-v1.md)，本次交付版本见 [T18记录](https://github.com/qxu8219-droid/backend_ae_tool/blob/v1.0.0/docs/validation/t18-status.md)。
+首次安装和本地交付请先阅读 [运行手册](https://github.com/qxu8219-droid/backend_ae_tool/blob/v1.1.0/docs/delivery-v1.md)；故障定位见 [排查说明](https://github.com/qxu8219-droid/backend_ae_tool/blob/v1.1.0/docs/troubleshooting-v1.md)，首版交付记录见 [T18记录](https://github.com/qxu8219-droid/backend_ae_tool/blob/v1.0.0/docs/validation/t18-status.md)。
 
 ## 启动
 
